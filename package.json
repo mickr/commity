@@ -1,0 +1,57 @@
+{
+	"name": "commity",
+	"displayName": "Commity",
+	"description": "AI-powered commit message generator",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.80.0"
+	},
+	"categories": ["SCM Providers"],
+	"activationEvents": [],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "commity.generateCommitMessage",
+				"title": "Generate Commit Message",
+				"icon": "$(robot)"
+			}
+		],
+		"menus": {
+			"scm/title": [
+				{
+					"command": "commity.generateCommitMessage",
+					"group": "navigation",
+					"when": "scmProvider == git"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage"
+	},
+	"devDependencies": {
+		"@types/jest": "^30.0.0",
+		"@types/node": "20.x",
+		"@types/vscode": "^1.80.0",
+		"@typescript-eslint/eslint-plugin": "^6.4.1",
+		"@typescript-eslint/parser": "^6.4.1",
+		"eslint": "^8.47.0",
+		"jest": "^30.2.0",
+		"prettier": "^3.6.2",
+		"ts-jest": "^29.4.5",
+		"typescript": "^5.1.6"
+	},
+	"dependencies": {
+		"dotenv": "^17.2.3",
+		"openai": "^4.75.0",
+		"zod": "^3.23.8"
+	}
+}

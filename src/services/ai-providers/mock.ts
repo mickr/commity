@@ -1,0 +1,16 @@
+import type { LLMProvider } from "../ai";
+
+export class MockLLMProvider implements LLMProvider {
+	constructor(private mockResponse = "feat: mock commit message") {}
+
+	async *streamText(_prompt: string): AsyncGenerator<string> {
+		const words = this.mockResponse.split(" ");
+		for (const word of words) {
+			yield `${word} `;
+		}
+	}
+
+	async generateText(_prompt: string): Promise<string> {
+		return this.mockResponse;
+	}
+}
