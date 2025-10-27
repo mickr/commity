@@ -11,5 +11,7 @@ AI-powered commit message generator for VS Code.
 
 1. Install dependencies: `npm install`
 2. Compile: `npm run compile`
-3. Press F5 to open a new VS Code window with the extension loaded
-4. Open a Git repository and click the sparkle icon in the Source Control view
+3. Run the tests: `npm run test`
+4. Compile and watch for changes: `npm run watch`
+5. Press F5 to open a new VS Code window with the extension loaded
+6. Open a Git repository and click the sparkle icon in the Source Control view
