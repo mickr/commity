@@ -1,5 +1,8 @@
 jest.mock("../git", () => ({
-	getStagedDiff: jest.fn(() => "diff --stat"),
+	getStagedDiff: jest.fn(() => ({
+		"src/file1.ts": { diff: "diff --git a/src/file1.ts...", summary: undefined },
+		"src/file2.ts": { diff: "diff --git a/src/file2.ts...", summary: undefined },
+	})),
 	getCurrentBranch: jest.fn(() => "feature/charming-upgrade"),
 	getCurrentAuthor: jest.fn(() => "Grace Hopper"),
 }));
@@ -25,13 +28,12 @@ describe("parseTemplate", () => {
 
 		const parsed = parseTemplate(template);
 
-		expect(parsed).toBe(
-			[
-				"Changes: diff --stat",
-				"Branch: feature/charming-upgrade",
-				"Author: Grace Hopper",
-				"Email: {{email}}",
-			].join("\n")
-		);
+		expect(parsed).toContain("File: src/file1.ts");
+		expect(parsed).toContain("diff --git a/src/file1.ts...");
+		expect(parsed).toContain("File: src/file2.ts");
+		expect(parsed).toContain("diff --git a/src/file2.ts...");
+		expect(parsed).toContain("Branch: feature/charming-upgrade");
+		expect(parsed).toContain("Author: Grace Hopper");
+		expect(parsed).toContain("Email: {{email}}");
 	});
 });

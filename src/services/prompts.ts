@@ -7,12 +7,16 @@ const templateVariables = {
 	author: "{{author}}",
 };
 export function parseTemplate(template: string) {
-	const changes = getStagedDiff();
+	const diffs = getStagedDiff();
 	const branch = getCurrentBranch();
 	const author = getCurrentAuthor();
 
+	const changesText = Object.entries(diffs)
+		.map(([filePath, { diff }]) => `File: ${filePath}\n${diff}`)
+		.join("\n\n");
+
 	return template
-		.replace(templateVariables.changes, changes)
+		.replace(templateVariables.changes, changesText)
 		.replace(templateVariables.branch, branch)
 		.replace(templateVariables.author, author);
 }

@@ -31,5 +31,13 @@
 		"@typescript-eslint/explicit-module-boundary-types": "off",
 		"@typescript-eslint/no-explicit-any": "warn"
 	},
-	"ignorePatterns": ["out", "dist", "**/*.d.ts", "node_modules", "workers"]
+	"ignorePatterns": ["out", "dist", "**/*.d.ts", "node_modules", "workers"],
+	"overrides": [
+		{
+			"files": ["**/__tests__/**/*.ts", "**/*.test.ts"],
+			"rules": {
+				"@typescript-eslint/no-var-requires": "off"
+			}
+		}
+	]
 }

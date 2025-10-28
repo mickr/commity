@@ -3,7 +3,10 @@ jest.mock("../config", () => ({
 }));
 
 jest.mock("../git", () => ({
-	getStagedDiff: jest.fn(() => "diff --stat"),
+	getStagedDiff: jest.fn(() => ({
+		"src/file1.ts": { diff: "diff --git a/src/file1.ts...", summary: undefined },
+		"src/file2.ts": { diff: "diff --git a/src/file2.ts...", summary: undefined },
+	})),
 	getCurrentBranch: jest.fn(() => "feature/charming-upgrade"),
 	getCurrentAuthor: jest.fn(() => "Grace Hopper"),
 }));
@@ -31,7 +34,9 @@ describe("generateCommitMessagePrompt", () => {
 	it("returns a rendered config-driven prompt with git-derived values", () => {
 		const prompt = generateCommitMessagePrompt();
 
-		expect(prompt).toContain("diff --stat");
+		expect(prompt).toContain("File: src/file1.ts");
+		expect(prompt).toContain("diff --git a/src/file1.ts...");
+		expect(prompt).toContain("File: src/file2.ts");
 		expect(prompt).toContain("feature/charming-upgrade");
 		expect(prompt).toContain("Grace Hopper");
 		expect(prompt).toContain("Follow Conventional Commits for");
@@ -49,6 +54,6 @@ describe("getConfigDrivenPrompt", () => {
 		expect(prompt).toContain(
 			"You are a helpful assistant that generates commit messages for a Git repository."
 		);
-		expect(prompt).toContain("diff --stat");
+		expect(prompt).toContain("{{changes}}");
 	});
 });
