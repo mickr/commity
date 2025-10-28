@@ -5,4 +5,5 @@ dist
 *.bundle.js
 coverage
 .vscode-test
+workers
 

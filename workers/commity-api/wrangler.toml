@@ -1,0 +1,12 @@
+name = "commity-worker"
+main = "src/index.ts"
+compatibility_date = "2024-10-01"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "24063458b89f4f4c8dad17a23d03735e"
+preview_id = "9fd5fc5615bf42c5a4e4c67f62264878"
+
+[vars]
+RATE_LIMIT_MAX = "100"
+RATE_LIMIT_WINDOW = "3600"

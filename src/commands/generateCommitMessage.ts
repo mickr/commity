@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { generateCommitMessagePrompt } from "../services/prompts";
 
 export const generateCommitMessage = async () => {
 	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
@@ -12,7 +11,7 @@ export const generateCommitMessage = async () => {
 		return;
 	}
 
-	const testMessage = generateCommitMessagePrompt();
+	const testMessage = "test message";
 
 	repository.inputBox.value = testMessage;
 	vscode.window.showInformationMessage("Commit message generated!");

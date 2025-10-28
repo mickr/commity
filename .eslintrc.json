@@ -31,5 +31,5 @@
 		"@typescript-eslint/explicit-module-boundary-types": "off",
 		"@typescript-eslint/no-explicit-any": "warn"
 	},
-	"ignorePatterns": ["out", "dist", "**/*.d.ts", "node_modules"]
+	"ignorePatterns": ["out", "dist", "**/*.d.ts", "node_modules", "workers"]
 }
