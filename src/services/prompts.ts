@@ -1,23 +1,49 @@
-interface GitDiff {
-	filename: string;
-	diff: string;
+import { readConfiguration } from "./config";
+import { getCurrentAuthor, getCurrentBranch, getStagedDiff } from "./git";
+
+const templateVariables = {
+	changes: "{{changes}}",
+	branch: "{{branch}}",
+	author: "{{author}}",
+};
+export function parseTemplate(template: string) {
+	const changes = getStagedDiff();
+	const branch = getCurrentBranch();
+	const author = getCurrentAuthor();
+
+	return template
+		.replace(templateVariables.changes, changes)
+		.replace(templateVariables.branch, branch)
+		.replace(templateVariables.author, author);
 }
 
 export const defaultCommitMessagePrompt = `
     You are a helpful assistant that generates commit messages for a Git repository.
     You are given a list of changes that have been made to the repository. Each change is a file and the diff of the changes.
-    You need to generate a commit message for the changes.
-    The commit message should be a single line of text that describes the changes.
-    The commit message should be in the following format:
+    You need to generate a commit message for the changes. Keep it short and concise but still descriptive of the changes in the diff.
+    {{changes}} 
     `;
 
-export const generateCommitMessagePrompt = (changes: GitDiff[]) => {
-	return `
+export function getConfigDrivenPrompt() {
+	const configDrivenPrompt = readConfiguration();
+
+	if (!configDrivenPrompt.success) {
+		return defaultCommitMessagePrompt;
+	}
+
+	const systemPrompt = `
     You are a helpful assistant that generates commit messages for a Git repository.
     You are given a list of changes that have been made to the repository. Each change is a file and the diff of the changes.
     You need to generate a commit message for the changes.
-    The commit message should be a single line of text that describes the changes.
-    The commit message should be in the following format:
-    ${changes}
+    The commit message should follow the following instructions:
+    ${configDrivenPrompt.data}
+
+    {{changes}} 
     `;
+
+	return parseTemplate(systemPrompt);
+}
+
+export const generateCommitMessagePrompt = () => {
+	return parseTemplate(getConfigDrivenPrompt());
 };

@@ -8,7 +8,8 @@ import { defaultCommitMessagePrompt } from "./prompts";
 function processTemplate(templateData: string) {
 	return templateData;
 }
-export function readConfiguration(context: vscode.ExtensionContext) {
+
+export function readConfiguration() {
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
 	if (!workspaceRoot) {
@@ -18,9 +19,7 @@ export function readConfiguration(context: vscode.ExtensionContext) {
 		};
 	}
 
-	console.log("[Commity] Workspace root:", workspaceRoot);
 	const configurationFile = path.join(workspaceRoot, ".commity.json");
-	console.log("[Commity] Looking for config at:", configurationFile);
 
 	// Check if file exists first
 	if (!fs.existsSync(configurationFile)) {

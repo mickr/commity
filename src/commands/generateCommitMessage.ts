@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { getStagedDiff, getCurrentBranch } from "../services/git";
+import { generateCommitMessagePrompt } from "../services/prompts";
 
-export const generateCommitMessage = async (promptTemplate: string) => {
+export const generateCommitMessage = async () => {
 	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
 	const git = gitExtension?.getAPI(1);
 
@@ -12,13 +12,7 @@ export const generateCommitMessage = async (promptTemplate: string) => {
 		return;
 	}
 
-	const stagedDiff = getStagedDiff();
-	const currentBranch = getCurrentBranch();
-
-	console.log("Current branch:", currentBranch);
-	console.log("Staged diff:", stagedDiff);
-
-	const testMessage = promptTemplate;
+	const testMessage = generateCommitMessagePrompt();
 
 	repository.inputBox.value = testMessage;
 	vscode.window.showInformationMessage("Commit message generated!");

@@ -50,3 +50,13 @@ export function getCurrentBranch(): string {
 
 	return repository.state?.HEAD?.name || "";
 }
+
+export function getCurrentAuthor(): string {
+	try {
+		const gitConfig = execSync("git config user.name", { encoding: "utf-8" });
+		return gitConfig;
+	} catch (error) {
+		console.error("Error getting current author:", error);
+		return "";
+	}
+}
