@@ -18,9 +18,15 @@ function toPosixRelative(cwd: string, fsPath: string): string {
 function shouldIgnore(relPosix: string): boolean {
 	const base = relPosix.split("/").pop() || "";
 
-	if (relPosix.includes("node_modules/")) {return true;}
-	if (relPosix.includes("vendor/")) {return true;}
-	if (relPosix.startsWith("dist/") || relPosix.startsWith("build/")) {return true;}
+	if (relPosix.includes("node_modules/")) {
+		return true;
+	}
+	if (relPosix.includes("vendor/")) {
+		return true;
+	}
+	if (relPosix.startsWith("dist/") || relPosix.startsWith("build/")) {
+		return true;
+	}
 
 	const lockFiles = [
 		"package-lock.json",
@@ -31,9 +37,13 @@ function shouldIgnore(relPosix: string): boolean {
 		"Gemfile.lock",
 		"poetry.lock",
 	];
-	if (lockFiles.includes(base)) {return true;}
+	if (lockFiles.includes(base)) {
+		return true;
+	}
 
-	if (/\.(min\.js|min\.css)$/.test(base)) {return true;}
+	if (/\.(min\.js|min\.css)$/.test(base)) {
+		return true;
+	}
 
 	return false;
 }
@@ -114,6 +124,7 @@ export function getCurrentAuthor(): string {
 	try {
 		const gitConfig = execSync("git config user.name", { encoding: "utf-8" });
 		return gitConfig.trim();
+		0;
 	} catch (error) {
 		console.error("Error getting current author:", error);
 		return "";

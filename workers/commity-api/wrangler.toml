@@ -10,3 +10,7 @@ preview_id = "9fd5fc5615bf42c5a4e4c67f62264878"
 [vars]
 RATE_LIMIT_MAX = "100"
 RATE_LIMIT_WINDOW = "3600"
+
+[[routes]]
+pattern = "fireworks.commity.ai"
+custom_domain = true
