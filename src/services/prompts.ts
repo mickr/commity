@@ -6,6 +6,24 @@ const templateVariables = {
 	branch: "{{branch}}",
 	author: "{{author}}",
 };
+
+export const defaultCommitMessagePrompt = `
+Here are some examples of good commit messages for different types of changes:
+- "Add user authentication system"
+- "Fix memory leak in data processing"
+- "Update dependencies to latest versions"
+- "Remove deprecated API endpoints"
+- "Refactor database connection logic"
+- "Add unit tests for payment module"
+
+Analyze the provided changes and determine the primary purpose or effect of the modifications. Consider:
+- What functionality is being added, modified, or removed?
+- Are these bug fixes, new features, refactoring, or maintenance changes?
+- What is the most important change if there are multiple modifications?
+
+Return only the commit message without any additional text, explanations, or formatting.
+    `;
+
 export function parseTemplate(template: string) {
 	const diffs = getStagedDiff();
 	const branch = getCurrentBranch();
@@ -20,34 +38,3 @@ export function parseTemplate(template: string) {
 		.replace(templateVariables.branch, branch)
 		.replace(templateVariables.author, author);
 }
-
-export const defaultCommitMessagePrompt = `
-    You are a helpful assistant that generates commit messages for a Git repository.
-    You are given a list of changes that have been made to the repository. Each change is a file and the diff of the changes.
-    You need to generate a commit message for the changes. Keep it short and concise but still descriptive of the changes in the diff.
-    {{changes}} 
-    `;
-
-export function getConfigDrivenPrompt() {
-	const configDrivenPrompt = readConfiguration();
-
-	if (!configDrivenPrompt.success) {
-		return defaultCommitMessagePrompt;
-	}
-
-	const systemPrompt = `
-    You are a helpful assistant that generates commit messages for a Git repository.
-    You are given a list of changes that have been made to the repository. Each change is a file and the diff of the changes.
-    You need to generate a commit message for the changes.
-    The commit message should follow the following instructions:
-    ${configDrivenPrompt.data}
-
-    {{changes}} 
-    `;
-
-	return parseTemplate(systemPrompt);
-}
-
-export const generateCommitMessagePrompt = () => {
-	return parseTemplate(getConfigDrivenPrompt());
-};

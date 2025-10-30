@@ -1,4 +1,4 @@
-import type { LLMProvider } from "../ai";
+import type { CommitMessageRequest, LLMProvider } from "../../types/ai";
 
 export const resolveFireworksBaseUrl = (isDevelopment: boolean): string => {
 	return isDevelopment ? "http://localhost:8787" : "https://fireworks.commity.ai";
@@ -42,6 +42,33 @@ export class FireworksProvider implements LLMProvider {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({ prompt }),
+		});
+
+		if (!response.ok) {
+			const error = (await response.json().catch(() => null)) as FireworksErrorResponse | null;
+			throw new Error(
+				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`
+			);
+		}
+
+		const data: unknown = await response.json();
+
+		if (!isFireworksSuccessResponse(data)) {
+			throw new Error("Fireworks API returned an unexpected payload");
+		}
+
+		return data.message;
+	}
+
+	async generateCommitMessage(request: CommitMessageRequest): Promise<string> {
+		const endpoint = new URL("/api/commit-message", this.baseUrl).toString();
+
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(request),
 		});
 
 		if (!response.ok) {

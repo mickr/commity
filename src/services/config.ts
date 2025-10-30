@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import * as vscode from "vscode";
 import { configurationSchema } from "../types/config";
-import { defaultCommitMessagePrompt } from "./prompts";
 
 function processTemplate(templateData: string) {
 	return templateData;
@@ -15,7 +14,7 @@ export function readConfiguration() {
 	if (!workspaceRoot) {
 		return {
 			success: false,
-			data: defaultCommitMessagePrompt,
+			data: undefined,
 		};
 	}
 
@@ -25,7 +24,7 @@ export function readConfiguration() {
 	if (!fs.existsSync(configurationFile)) {
 		return {
 			success: false,
-			data: defaultCommitMessagePrompt,
+			data: undefined,
 		};
 	}
 
@@ -36,7 +35,7 @@ export function readConfiguration() {
 	} catch (error) {
 		return {
 			success: false,
-			data: defaultCommitMessagePrompt,
+			data: undefined,
 		};
 	}
 
@@ -49,12 +48,12 @@ export function readConfiguration() {
 
 		return {
 			success: true,
-			data: processTemplate(result.data.commitMessagePrompt),
+			data: result.data.commitMessagePrompt,
 		};
 	} catch (error) {
 		return {
 			success: false,
-			data: defaultCommitMessagePrompt,
+			data: undefined,
 		};
 	}
 }

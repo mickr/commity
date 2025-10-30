@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { FireworksProvider } from "../services/ai-providers/fireworks";
-import { generateCommitMessagePrompt } from "../services/prompts";
+import { getStagedDiff, getCurrentBranch, getCurrentAuthor } from "../services/git";
+import { readConfiguration } from "../services/config";
+import type { CommitMessageRequest, DiffEntry } from "../types/ai";
 
 export const generateCommitMessage = async (context: vscode.ExtensionContext) => {
 	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
@@ -14,13 +16,37 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 		return;
 	}
 
-	const message = await client.generateText(generateCommitMessagePrompt());
+	const stagedDiffs = getStagedDiff();
+	const branch = getCurrentBranch();
+	const author = getCurrentAuthor();
 
-	console.log(message);
+	const diffs: DiffEntry[] = Object.entries(stagedDiffs).map(([path, { diff }]) => ({
+		path,
+		diff,
+	}));
 
-	const commitMessage = message;
+	const configResult = readConfiguration();
+	const override = configResult.success ? configResult.data : undefined;
 
-	repository.inputBox.value = commitMessage;
+	const request: CommitMessageRequest = {
+		diffs,
+		branch,
+		author,
+		override,
+	};
+
+	const message = await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: "Generating commit message...",
+			cancellable: false,
+		},
+		async () => {
+			return await client.generateCommitMessage(request);
+		}
+	);
+
+	repository.inputBox.value = message;
 
 	vscode.window.showInformationMessage("Commit message generated!");
 };

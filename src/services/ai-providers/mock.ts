@@ -1,4 +1,4 @@
-import type { LLMProvider } from "../ai";
+import type { LLMProvider } from "../../types/ai";
 
 export class MockLLMProvider implements LLMProvider {
 	constructor(private mockResponse = "feat: mock commit message") {}
