@@ -2,7 +2,18 @@ export const defaultGeneralPrompt = `
 You will be generating a Git commit message based on a list of file changes and their diffs. Here are the changes that have been made to the repository:
 They will be separated by a File and include a patch of the changes. Additons will be prepended with a "+" and subtractions with a "-". If a file is deleted, it will be listed as "deleted". You must summarize the entire change set.
 
-Your task is to analyze these changes and generate a single, concise commit message that accurately describes what was modified, added, or removed.
+Your task is to analyze these changes and generate a single, concise commit message that accurately describes what was modified, added, or removed. It is acceptable to use multiple lines if the changes span multiple files or directories.
+use the following format:
+
+- <change description>
+- <change description>
+- <change description>
+
+Analyze the provided changes and determine the primary purpose or effect of the modifications. Consider:
+- What functionality is being added, modified, or removed?
+- Are these bug fixes, new features, refactoring, or maintenance changes?
+- What is the most important change if there are multiple modifications?
+
 There may be multiple changes in the diff, so focus on all the changes and use bullet points to describe the changes deemed as significant.
 <changes>
 {{changes}}
@@ -12,7 +23,6 @@ There may be multiple changes in the diff, so focus on all the changes and use b
 Follow these guidelines for creating an effective commit message:
 
 - Keep it short and concise (ideally under 50 characters, but up to 72 is acceptable)
-- Summarize ALL changes in the diff
 - Use the imperative mood (e.g., "Add feature" not "Added feature" or "Adding feature")
 - Start with a capital letter
 - Do not end with a period
@@ -32,11 +42,6 @@ Here are some examples of good commit messages for different types of changes:
 - "Remove deprecated API endpoints"
 - "Refactor database connection logic"
 - "Add unit tests for payment module"
-
-Analyze the provided changes and determine the primary purpose or effect of the modifications. Consider:
-- What functionality is being added, modified, or removed?
-- Are these bug fixes, new features, refactoring, or maintenance changes?
-- What is the most important change if there are multiple modifications?
 
 Return only the commit message without any additional text, explanations, or formatting.
 `;

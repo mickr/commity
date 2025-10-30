@@ -1,0 +1,24 @@
+commitMessagePrompt: |
+  Generate a commit message following the Conventional Commits specification.
+
+  Format: <type>(<scope>): <subject> {{changes}}
+
+  Types:
+  - feat: A new feature
+  - fix: A bug fix
+  - docs: Documentation only changes
+  - style: Code style changes (formatting, missing semi colons, etc)
+  - refactor: Code change that neither fixes a bug nor adds a feature
+  - perf: Performance improvement
+  - test: Adding or updating tests
+  - chore: Changes to build process or auxiliary tools
+
+  Rules:
+  - Use imperative mood in subject line ("add" not "added" or "adds")
+  - Don't capitalize first letter
+  - No period at the end
+  - Keep subject line under 50 characters
+  - Separate subject from body with a blank line (if body is needed)
+  - Wrap body at 72 characters
+
+  Based on the git diff, generate only the commit message in the correct format.
