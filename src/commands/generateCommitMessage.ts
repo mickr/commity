@@ -39,7 +39,7 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 		{
 			location: vscode.ProgressLocation.Notification,
 			title: "Generating commit message...",
-			cancellable: false,
+			cancellable: true,
 		},
 		async () => {
 			return await client.generateCommitMessage(request);
@@ -48,5 +48,5 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 
 	repository.inputBox.value = message;
 
-	vscode.window.showInformationMessage("Commit message generated!");
+	vscode.window.setStatusBarMessage("Commity: Commit message generated!", 5000);
 };

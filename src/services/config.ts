@@ -5,10 +5,6 @@ import * as vscode from "vscode";
 import yaml from "js-yaml";
 import { configurationSchema } from "../types/config";
 
-function processTemplate(templateData: string) {
-	return templateData;
-}
-
 export function readConfiguration() {
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
