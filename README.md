@@ -61,6 +61,32 @@ commitMessagePrompt: |
   Keep it under 50 characters and use imperative mood.
 ```
 
+## Development
+
+### Building
+
+The extension includes version-aware build commands:
+
+```bash
+pnpm run build:patch  # Increments patch version (0.0.1 → 0.0.2)
+pnpm run build:minor  # Increments minor version (0.0.1 → 0.1.0)
+pnpm run build:major  # Increments major version (0.0.1 → 1.0.0)
+```
+
+Each command:
+
+1. Bumps the version in `package.json`
+2. Runs type checking and production build
+3. Packages the extension as a `.vsix` file
+
+### Manual Version Control
+
+```bash
+pnpm run version:patch  # Just bump version, no build
+pnpm run version:minor
+pnpm run version:major
+```
+
 ## Requirements
 
 - VS Code 1.80.0 or higher

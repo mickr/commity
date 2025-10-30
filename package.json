@@ -2,7 +2,7 @@
 	"name": "commity",
 	"displayName": "Commity",
 	"description": "AI-powered commit message generator",
-	"version": "0.0.1",
+	"version": "0.2.0",
 	"engines": {
 		"vscode": "^1.80.0"
 	},
@@ -44,7 +44,13 @@
 		"lint": "eslint src --ext ts",
 		"test": "jest",
 		"test:watch": "jest --watch",
-		"test:coverage": "jest --coverage"
+		"test:coverage": "jest --coverage",
+		"version:patch": "npm version patch --no-git-tag-version",
+		"version:minor": "npm version minor --no-git-tag-version",
+		"version:major": "npm version major --no-git-tag-version",
+		"build:patch": "pnpm run version:patch && pnpm run package && vsce package --no-dependencies",
+		"build:minor": "pnpm run version:minor && pnpm run package && vsce package --no-dependencies",
+		"build:major": "pnpm run version:major && pnpm run package && vsce package --no-dependencies"
 	},
 	"devDependencies": {
 		"@types/jest": "^30.0.0",
@@ -53,18 +59,17 @@
 		"@types/vscode": "^1.80.0",
 		"@typescript-eslint/eslint-plugin": "^6.4.1",
 		"@typescript-eslint/parser": "^6.4.1",
+		"@vscode/vsce": "^3.2.1",
+		"dotenv": "^17.2.3",
 		"esbuild": "^0.25.11",
 		"eslint": "^8.47.0",
 		"jest": "^30.2.0",
+		"js-yaml": "^4.1.0",
 		"npm-run-all": "^4.1.5",
+		"openai": "^4.75.0",
 		"prettier": "^3.6.2",
 		"ts-jest": "^29.4.5",
-		"typescript": "^5.1.6"
-	},
-	"dependencies": {
-		"dotenv": "^17.2.3",
-		"js-yaml": "^4.1.0",
-		"openai": "^4.75.0",
+		"typescript": "^5.1.6",
 		"zod": "^3.23.8"
 	},
 	"packageManager": "pnpm@10.20.0+sha512.cf9998222162dd85864d0a8102e7892e7ba4ceadebbf5a31f9c2fce48dfce317a9c53b9f6464d1ef9042cba2e02ae02a9f7c143a2b438cd93c91840f0192b9dd"

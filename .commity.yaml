@@ -1,7 +1,10 @@
 commitMessagePrompt: |
-  Generate a commit message following the Conventional Commits specification.
+  Generate a commit message for this VS Code extension following the Conventional Commits specification.
 
-  Format: <type>(<scope>): <subject> {{changes}}
+  Format: <type>(<scope>): <subject>
+
+  If the branch name contains a JIRA ticket ID (e.g., WEBAPP-123, TEST-456), prefix the commit message with (TICKET-ID].
+  Example: feat(ui): add commit generation button (WEBAPP-123)
 
   Types:
   - feat: A new feature
@@ -12,13 +15,21 @@ commitMessagePrompt: |
   - perf: Performance improvement
   - test: Adding or updating tests
   - chore: Changes to build process or auxiliary tools
+  - ci: CI/CD changes
+
+  Scopes: extension, config, ai, git, ui, docs
 
   Rules:
-  - Use imperative mood in subject line ("add" not "added" or "adds")
+  - Use imperative mood ("add" not "added")
   - Don't capitalize first letter
   - No period at the end
-  - Keep subject line under 50 characters
-  - Separate subject from body with a blank line (if body is needed)
-  - Wrap body at 72 characters
+  - Keep under 50 characters
+  - Be specific and concise
+  - Extract JIRA ticket ID from branch name if present (pattern: [A-Z]+-[0-9]+)
 
-  Based on the git diff, generate only the commit message in the correct format.
+  Context:
+  Branch: {{branch}}
+  Author: {{author}}
+
+  Changes:
+  {{changes}}

@@ -1,4 +1,4 @@
-import type { LLMProvider } from "../../types/ai";
+import type { CommitMessageRequest, LLMProvider } from "../../types/ai";
 
 export class MockLLMProvider implements LLMProvider {
 	constructor(private mockResponse = "feat: mock commit message") {}
@@ -11,6 +11,13 @@ export class MockLLMProvider implements LLMProvider {
 	}
 
 	async generateText(_prompt: string): Promise<string> {
+		return this.mockResponse;
+	}
+
+	async generateCommitMessage(
+		_request: CommitMessageRequest,
+		_signal?: AbortSignal
+	): Promise<string> {
 		return this.mockResponse;
 	}
 }

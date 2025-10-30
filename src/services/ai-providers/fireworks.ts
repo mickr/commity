@@ -60,7 +60,10 @@ export class FireworksProvider implements LLMProvider {
 		return data.message;
 	}
 
-	async generateCommitMessage(request: CommitMessageRequest): Promise<string> {
+	async generateCommitMessage(
+		request: CommitMessageRequest,
+		signal?: AbortSignal
+	): Promise<string> {
 		const endpoint = new URL("/api/commit-message", this.baseUrl).toString();
 
 		const response = await fetch(endpoint, {
@@ -69,6 +72,7 @@ export class FireworksProvider implements LLMProvider {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(request),
+			signal,
 		});
 
 		if (!response.ok) {

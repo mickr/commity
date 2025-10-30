@@ -25,6 +25,11 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 		diff,
 	}));
 
+	if (diffs.length === 0) {
+		vscode.window.showWarningMessage("No staged changes to generate a commit message for");
+		return;
+	}
+
 	const configResult = readConfiguration();
 	const override = configResult.success ? configResult.data : undefined;
 
@@ -41,8 +46,14 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 			title: "Generating commit message...",
 			cancellable: true,
 		},
-		async () => {
-			return await client.generateCommitMessage(request);
+		async (progress, token) => {
+			const abortController = new AbortController();
+
+			token.onCancellationRequested(() => {
+				abortController.abort();
+			});
+
+			return await client.generateCommitMessage(request, abortController.signal);
 		}
 	);
 
