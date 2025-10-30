@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as vscode from "vscode";
+import yaml from "js-yaml";
 import { configurationSchema } from "../types/config";
 
 function processTemplate(templateData: string) {
@@ -18,7 +19,7 @@ export function readConfiguration() {
 		};
 	}
 
-	const configurationFile = path.join(workspaceRoot, ".commity.json");
+	const configurationFile = path.join(workspaceRoot, ".commity.yaml");
 
 	// Check if file exists first
 	if (!fs.existsSync(configurationFile)) {
@@ -40,7 +41,8 @@ export function readConfiguration() {
 	}
 
 	try {
-		const result = configurationSchema.safeParse(JSON.parse(configurationContent));
+		const parsed = yaml.load(configurationContent);
+		const result = configurationSchema.safeParse(parsed);
 
 		if (!result.success) {
 			throw new Error("Invalid configuration file");
