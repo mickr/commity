@@ -2,9 +2,6 @@
   "name": "commity-workers",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "commity-api"
-  ],
   "scripts": {
     "dev": "pnpm --filter commity-api dev",
     "deploy": "pnpm --filter commity-api deploy"
@@ -12,8 +9,5 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
     "wrangler": "^3.94.0"
-  },
-  "dependencies": {
-    "hono": "^4.6.14"
   }
 }
