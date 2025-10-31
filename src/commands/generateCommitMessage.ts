@@ -26,7 +26,7 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 	}));
 
 	if (diffs.length === 0) {
-		vscode.window.showWarningMessage("No staged changes to generate a commit message for");
+		vscode.window.setStatusBarMessage("Commity: No staged changes", 5000);
 		return;
 	}
 
