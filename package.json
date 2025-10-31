@@ -2,7 +2,25 @@
 	"name": "commity",
 	"displayName": "Commity",
 	"description": "AI-powered commit message generator",
-	"version": "0.2.0",
+	"version": "0.2.2",
+	"publisher": "ryanlabs",
+	"author": "Mick Ryan",
+	"license": "SEE LICENSE IN LICENSE",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/mickr/commity.git"
+	},
+	"bugs": {
+		"url": "https://github.com/mickr/commity/issues"
+	},
+	"homepage": "https://commity.ai",
+	"keywords": [
+		"git",
+		"commit",
+		"ai",
+		"commit-message",
+		"scm"
+	],
 	"engines": {
 		"vscode": "^1.80.0"
 	},

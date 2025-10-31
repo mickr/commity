@@ -1,0 +1,74 @@
+name: Release Extension
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Get current version
+        id: current_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      
+      - name: Increment version
+        id: new_version
+        run: |
+          pnpm run version:patch
+          echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      
+      - name: Build extension
+        run: pnpm run package
+      
+      - name: Package extension
+        run: pnpm exec vsce package --no-dependencies
+      
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add package.json pnpm-lock.yaml
+          git commit -m "chore: bump version to ${{ steps.new_version.outputs.version }}"
+          git push
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.new_version.outputs.version }}
+          name: Release v${{ steps.new_version.outputs.version }}
+          body: |
+            ## Changes in v${{ steps.new_version.outputs.version }}
+            
+            Auto-generated release from commit ${{ github.sha }}
+          files: |
+            commity-${{ steps.new_version.outputs.version }}.vsix
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
