@@ -1,8 +1,8 @@
 import type { Context } from "hono";
 import type { Bindings, CommitMessageRequest } from "../types";
 import { checkRateLimit } from "../utils/rate-limit";
-import { buildPrompt } from "../prompts";
-import { chunkDiffs, buildChunkPrompt, buildFinalPrompt } from "../utils/diff-chunker";
+import { buildPrompt, buildChunkPrompt, buildFinalPrompt } from "../prompts";
+import { chunkDiffs } from "../utils/diff-chunker";
 import { summarizeChunk, generateFinalMessage } from "../utils/llm-client";
 import { processWithAdaptiveConcurrency } from "../utils/adaptive-concurrency";
 
@@ -48,25 +48,7 @@ export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 			const finalPrompt = buildFinalPrompt(summaries, body.branch, body.author, body.override);
 			finalMessage = await generateFinalMessage(c.env.FIREWORKS_API_KEY, finalPrompt);
 		} else {
-			const response = await fetch("https://api.fireworks.ai/inference/v1/chat/completions", {
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${c.env.FIREWORKS_API_KEY}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					model: "accounts/fireworks/models/gpt-oss-20b",
-					messages: [{ role: "user", content: prompt }],
-					temperature: 0.2,
-				}),
-			});
-
-			if (!response.ok) {
-				throw new Error(`Fireworks API error: ${response.status}`);
-			}
-
-			const data = await response.json() as any;
-			finalMessage = data.choices[0].message.content;
+			finalMessage = await generateFinalMessage(c.env.FIREWORKS_API_KEY, prompt);
 		}
 		
 		return c.json({ message: finalMessage });

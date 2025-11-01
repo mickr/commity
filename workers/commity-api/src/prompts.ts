@@ -1,48 +1,51 @@
 export const defaultGeneralPrompt = `
-You will be generating a Git commit message based on a list of file changes and their diffs. Here are the changes that have been made to the repository:
-They will be separated by a File and include a patch of the changes. Additons will be prepended with a "+" and subtractions with a "-". If a file is deleted, it will be listed as "deleted". You must summarize the entire change set.
+You will be generating a Git commit message based on file changes presented in unified diff format.
 
-Your task is to analyze these changes and generate a single, concise commit message that accurately describes what was modified, added, or removed. It is acceptable to use multiple lines if the changes span multiple files or directories.
-use the following format:
+Input format:
+- Each file section starts with: File: <path>
+- Followed by either the word "deleted" (for removed files) or a unified diff patch
+- Diff line prefixes:
+  + = added line
+  - = removed line
+  (space) = context line (unchanged)
+  @@, +++, --- = metadata headers
+- Binary files may show "Binary files differ"
 
-- <change description>
-- <change description>
-- <change description>
+Your task is to analyze these changes and generate a commit message that describes what was modified, added, or removed. Focus on the user-visible purpose and logical intent of the changes.
 
-Analyze the provided changes and determine the primary purpose or effect of the modifications. Consider:
+Consider:
 - What functionality is being added, modified, or removed?
 - Are these bug fixes, new features, refactoring, or maintenance changes?
-- What is the most important change if there are multiple modifications?
+- Group related changes by logical intent rather than listing every file
 
-There may be multiple changes in the diff, so focus on all the changes and use bullet points to describe the changes deemed as significant.
-<changes>
-{{changes}}
-</changes>
-
-
-Follow these guidelines for creating an effective commit message:
-
-- Keep it short and concise (ideally under 50 characters, but up to 72 is acceptable)
-- Use the imperative mood (e.g., "Add feature" not "Added feature" or "Adding feature")
+Commit message guidelines:
+- Use the imperative mood (e.g., "Add feature" not "Added feature")
 - Start with a capital letter
-- Do not end with a period
+- Do not end lines with a period
 - Focus on what the change accomplishes, not how it was implemented
-- If multiple files were changed for a single logical purpose, describe that purpose
-- If changes span multiple unrelated areas, try to identify the most significant change
 - Never sign the commit or state it was generated with an LLM
 `;
 
 export const defaultCommitMessagePrompt = `
 ${defaultGeneralPrompt}
 
-Here are some examples of good commit messages for different types of changes:
-- "Add user authentication system"
-- "Fix memory leak in data processing"
-- "Update dependencies to latest versions"
-- "Remove deprecated API endpoints"
-- "Refactor database connection logic"
-- "Add unit tests for payment module"
+<changes>
+{{changes}}
+</changes>
 
+Output format:
+- Subject line (one line, 50-72 characters)
+- Optionally, a blank line followed by bullet points for significant changes
+- Each bullet starts with "- ", capitalized, no trailing period
+
+Examples:
+Add user authentication system
+
+Fix memory leak in data processing
+- Release resources after processing each batch
+- Add cleanup handler for interrupted operations
+
+Update dependencies to latest versions
 Return only the commit message without any additional text, explanations, or formatting.
 `;
 
@@ -55,7 +58,7 @@ export function buildPrompt(
 	diffs: DiffEntry[],
 	branch: string,
 	author: string,
-	override?: string
+	override?: string,
 ): string {
 	const changesText = diffs
 		.map(({ path, diff }) => `File: ${path}\n${diff}`)
@@ -64,9 +67,79 @@ export function buildPrompt(
 	const systemPrompt = override
 		? `${defaultGeneralPrompt}\n\n${override}`
 		: defaultCommitMessagePrompt;
-		
-	return  systemPrompt
+
+	return systemPrompt
 		.replace(/\{\{changes\}\}/g, changesText)
 		.replace(/\{\{branch\}\}/g, branch)
 		.replace(/\{\{author\}\}/g, author);
+}
+
+export function buildChunkPrompt(files: DiffEntry[]): string {
+	const changesText = files
+		.map(({ path, diff }) => `File: ${path}\n${diff}`)
+		.join("\n\n");
+
+	return `Analyze file changes presented in unified diff format and provide a detailed explanation.
+
+Input format:
+- Each file section starts with: File: <path>
+- Followed by either the word "deleted" (for removed files) or a unified diff patch
+- Diff line prefixes:
+  + = added line
+  - = removed line
+  (space) = context line (unchanged)
+  @@, +++, --- = metadata headers
+- Binary files may show "Binary files differ"
+
+<changes>
+${changesText}
+</changes>
+
+Provide a detailed explanation of the changes. For each significant change, describe:
+- What changed and why it matters
+- The functional impact or purpose
+- Group related changes together
+
+Use bullet points (starting with "- ", capitalized, no trailing period) for clarity. Be thorough but concise.
+
+Return only the explanation without any additional text or formatting.`;
+}
+
+export function buildFinalPrompt(
+	summaries: string[],
+	branch: string,
+	author: string,
+	override?: string,
+): string {
+	const combinedSummaries = summaries
+		.map((s, i) => `Chunk ${i + 1}:\n${s}`)
+		.join("\n\n");
+
+	const basePrompt =
+		override ||
+		`Generate a Git commit message based on detailed explanations of file changes.
+
+Below are explanations from different parts of the changeset:
+
+<summaries>
+${combinedSummaries}
+</summaries>
+
+Your task is to create a cohesive commit message that captures all the changes.
+
+Output format:
+- Subject line (one line, 50-72 characters, imperative mood)
+- Optionally, a blank line followed by bullet points for significant changes
+- Each bullet starts with "- ", capitalized, no trailing period
+
+Guidelines:
+- Use the imperative mood (e.g., "Add feature" not "Added feature")
+- Start with a capital letter
+- Focus on what the change accomplishes
+- Group related changes logically
+- Never sign the commit or state it was generated with an LLM
+
+Return only the commit message without any additional text, explanations, or formatting.`;
+
+	return basePrompt;
 }
