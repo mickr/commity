@@ -1,11 +1,29 @@
 commitMessagePrompt: |
-  Generate a commit message for this VS Code extension following the Conventional Commits specification.
-
-  Format: <type>(<scope>): <subject>
-
-  If the branch name contains a JIRA ticket ID (e.g., WEBAPP-123, TEST-456), prefix the commit message with (TICKET-ID].
-  Example: feat(ui): add commit generation button (WEBAPP-123)
-
+  You will be generating a Git commit message based on file changes presented in unified diff format.
+  
+  Input format:
+  - Each file section starts with: File: <path>
+  - Followed by either the word "deleted" (for removed files) or a unified diff patch
+  - Diff line prefixes:
+    + = added line
+    - = removed line
+    (space) = context line (unchanged)
+    @@, +++, --- = metadata headers
+  - Binary files may show "Binary files differ"
+  
+  Your task is to analyze these changes and generate a commit message that describes what was modified, added, or removed. Focus on the user-visible purpose and logical intent of the changes.
+  
+  Consider:
+  - What functionality is being added, modified, or removed?
+  - Are these bug fixes, new features, refactoring, or maintenance changes?
+  - Group related changes by logical intent rather than listing every file
+  
+  Output format:
+  Use Conventional Commits specification: <type>(<scope>): <subject>
+  
+  If the branch name contains a JIRA ticket ID (pattern: [A-Z]+-[0-9]+), prefix the commit message with [TICKET-ID].
+  Example: feat(ui): add commit generation button [WEBAPP-123]
+  
   Types:
   - feat: A new feature
   - fix: A bug fix
@@ -16,20 +34,24 @@ commitMessagePrompt: |
   - test: Adding or updating tests
   - chore: Changes to build process or auxiliary tools
   - ci: CI/CD changes
-
-  Scopes: extension, config, ai, git, ui, docs
-
-  Rules:
-  - Use imperative mood ("add" not "added")
-  - Don't capitalize first letter
-  - No period at the end
-  - Keep under 50 characters
-  - Be specific and concise
-  - Extract JIRA ticket ID from branch name if present (pattern: [A-Z]+-[0-9]+)
-
+  
+  Scopes (when applicable): extension, config, ai, git, ui, docs
+  
+  Guidelines:
+  - Use imperative mood (e.g., "add feature" not "added feature")
+  - Don't capitalize first letter of subject (except for proper nouns)
+  - No period at the end of subject line
+  - Keep subject under 72 characters
+  - Focus on what the change accomplishes, not how it was implemented
+  - Optionally add bullet points after a blank line for significant changes
+  - Each bullet starts with "- ", capitalized, no trailing period
+  - Never sign the commit or state it was generated with an LLM
+  
   Context:
   Branch: {{branch}}
   Author: {{author}}
-
+  
   Changes:
   {{changes}}
+  
+  Return only the commit message without any additional text, explanations, or formatting.
