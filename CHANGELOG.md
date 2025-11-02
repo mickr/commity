@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/mickr/commity/compare/v0.3.0...v0.4.0) (2025-11-02)
+
+
+### Features
+
+* **examples:** add example config and update README with new prompt ([1378ef2](https://github.com/mickr/commity/commit/1378ef2613c49656aec677dc066b41c5999f03d0))
+
 # [0.3.0](https://github.com/mickr/commity/compare/v0.2.4...v0.3.0) (2025-11-02)
 
 
