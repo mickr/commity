@@ -16,7 +16,7 @@ export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 		return c.json({ error: "Rate limit exceeded" }, 429);
 	}
 
-	const body = await c.req.json() as CommitMessageRequest;
+	const body = (await c.req.json()) as CommitMessageRequest;
 
 	if (!body.diffs || !Array.isArray(body.diffs)) {
 		return c.json({ error: "Invalid diffs" }, 400);
@@ -30,27 +30,46 @@ export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 		return c.json({ error: "Invalid author" }, 400);
 	}
 
-	const prompt = buildPrompt(body.diffs, body.branch, body.author, body.override);
+	const prompt = buildPrompt(
+		body.diffs,
+		body.branch,
+		body.author,
+		body.override,
+	);
 
 	try {
 		let finalMessage: string;
 
 		if (prompt.length > 50000) {
 			const chunks = chunkDiffs(body.diffs);
-
 			const summaries: string[] = [];
+
 			for (const chunk of chunks) {
 				const chunkPrompt = buildChunkPrompt(chunk.files);
-				const summary = await summarizeChunk(c.env.FIREWORKS_API_KEY, chunkPrompt);
+				const summary = await summarizeChunk(
+					c.env.FIREWORKS_API_KEY,
+					chunkPrompt,
+				);
 				summaries.push(summary);
 			}
 
-			const finalPrompt = buildFinalPrompt(summaries, body.branch, body.author, body.override);
-			finalMessage = await generateFinalMessage(c.env.FIREWORKS_API_KEY, finalPrompt);
+			const finalPrompt = buildFinalPrompt(
+				summaries,
+				body.branch,
+				body.author,
+				body.override,
+			);
+			finalMessage = await generateFinalMessage(
+				c.env.FIREWORKS_API_KEY,
+				finalPrompt,
+			);
 		} else {
-			finalMessage = await generateFinalMessage(c.env.FIREWORKS_API_KEY, prompt);
+			finalMessage = await generateFinalMessage(
+				c.env.FIREWORKS_API_KEY,
+				prompt,
+			);
 		}
-		
+
 		return c.json({ message: finalMessage });
 	} catch (error) {
 		console.error("Error calling Fireworks API:", error);

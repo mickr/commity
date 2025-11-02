@@ -40,24 +40,57 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 		override,
 	};
 
-	const message = await vscode.window.withProgress(
-		{
-			location: vscode.ProgressLocation.Notification,
-			title: "Generating commit message...",
-			cancellable: true,
-		},
-		async (progress, token) => {
-			const abortController = new AbortController();
+	try {
+		const message = await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: "Generating commit message...",
+				cancellable: true,
+			},
+			async (progress, token) => {
+				const abortController = new AbortController();
 
-			token.onCancellationRequested(() => {
-				abortController.abort();
-			});
+				token.onCancellationRequested(() => {
+					abortController.abort();
+				});
 
-			return await client.generateCommitMessage(request, abortController.signal);
+				return await client.generateCommitMessage(request, abortController.signal);
+			}
+		);
+
+		repository.inputBox.value = message;
+		vscode.window.setStatusBarMessage("Commity: Commit message generated!", 5000);
+	} catch (error) {
+		if (error instanceof Error) {
+			if (error.name === "AbortError") {
+				vscode.window.setStatusBarMessage("Commity: Generation cancelled", 5000);
+				return;
+			}
+
+			if (error.message.includes("429") || error.message.toLowerCase().includes("rate limit")) {
+				vscode.window.showErrorMessage(
+					"Commity: Rate limit exceeded. Please try again in a moment."
+				);
+				return;
+			}
+
+			if (error.message.includes("500") || error.message.includes("503")) {
+				vscode.window.showErrorMessage(
+					"Commity: Service temporarily unavailable. Please try again later."
+				);
+				return;
+			}
+
+			if (error.message.includes("400") || error.message.includes("401") || error.message.includes("403")) {
+				vscode.window.showErrorMessage(
+					"Commity: Invalid request. Please check your configuration."
+				);
+				return;
+			}
 		}
-	);
 
-	repository.inputBox.value = message;
-
-	vscode.window.setStatusBarMessage("Commity: Commit message generated!", 5000);
+		vscode.window.showErrorMessage(
+			`Commity: Failed to generate commit message. ${error instanceof Error ? error.message : "Unknown error"}`
+		);
+	}
 };
