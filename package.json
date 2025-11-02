@@ -2,7 +2,7 @@
 	"name": "commity",
 	"displayName": "Commity",
 	"description": "AI-powered commit message generator",
-	"version": "0.2.4",
+	"version": "0.3.0",
 	"publisher": "ryanlabs",
 	"author": "Mick Ryan",
 	"license": "SEE LICENSE IN LICENSE",
