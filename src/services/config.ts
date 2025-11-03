@@ -4,18 +4,23 @@ import path from "node:path";
 import * as vscode from "vscode";
 import yaml from "js-yaml";
 import { configurationSchema } from "../types/config";
+import type { API, Repository } from "../types/git";
 
 export function readConfiguration() {
-	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	// Use git repository root instead of workspace root to support monorepos
+	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+	const git = gitExtension?.getAPI(1) as API | undefined;
+	const repository: Repository | undefined = git?.repositories[0];
 
-	if (!workspaceRoot) {
+	if (!repository) {
 		return {
 			success: false,
 			data: undefined,
 		};
 	}
 
-	const configurationFile = path.join(workspaceRoot, ".commity.yaml");
+	const gitRoot = repository.rootUri.fsPath;
+	const configurationFile = path.join(gitRoot, ".commity.yaml");
 
 	// Check if file exists first
 	if (!fs.existsSync(configurationFile)) {
