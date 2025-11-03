@@ -154,6 +154,7 @@ Return only the explanation without any additional text or formatting.`;
 
 export function buildSynthesisPrompt(
 	summaries: Array<{ folder?: string; path?: string; summary: string }>,
+	override?: string,
 ): string {
 	const summariesText = summaries
 		.map(({ folder, path, summary }) => {
@@ -161,6 +162,17 @@ export function buildSynthesisPrompt(
 			return `${location}: ${summary}`;
 		})
 		.join("\n");
+
+	if (override) {
+		return `${override}
+
+${summariesText}
+
+IMPORTANT FOR STREAMING: When generating multi-line output, you MUST use actual newline characters.
+- Each bullet point or separate line MUST be on its own line with a newline character
+- Add a blank line between the subject and bullet points if present
+- This ensures proper display during streaming output`;
+	}
 
 	return `Generate a Git commit message from these changes:
 

@@ -58,7 +58,7 @@ export async function commitMessageStreamHandler(c: Context<{ Bindings: Bindings
 			}),
 		);
 
-		const synthesisPrompt = buildSynthesisPrompt(folderSummaries);
+		const synthesisPrompt = buildSynthesisPrompt(folderSummaries, body.override);
 
 		return streamSSE(c, async (stream) => {
 			try {
