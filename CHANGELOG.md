@@ -1,3 +1,10 @@
+# [0.7.0](https://github.com/mickr/commity/compare/v0.6.0...v0.7.0) (2025-11-03)
+
+
+### Features
+
+* **ai:** add optional override to synthesis prompt generation ([05f1014](https://github.com/mickr/commity/commit/05f101420aefc0afa4eb13c88deca1941b02e476))
+
 # [0.6.0](https://github.com/mickr/commity/compare/v0.5.0...v0.6.0) (2025-11-03)
 
 
