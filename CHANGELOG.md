@@ -1,3 +1,10 @@
+# [0.5.0](https://github.com/mickr/commity/compare/v0.4.0...v0.5.0) (2025-11-03)
+
+
+### Features
+
+* integrate OpenAI API for commit message generation ([5158b49](https://github.com/mickr/commity/commit/5158b49f628640172d87321b98a351b268512925))
+
 # [0.4.0](https://github.com/mickr/commity/compare/v0.3.0...v0.4.0) (2025-11-02)
 
 
