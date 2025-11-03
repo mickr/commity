@@ -57,7 +57,7 @@ export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 			}),
 		);
 
-		const synthesisPrompt = buildSynthesisPrompt(folderSummaries);
+		const synthesisPrompt = buildSynthesisPrompt(folderSummaries, body.branch, body.author);
 		const finalMessage = await generateFinalMessage(
 			c.env.FIREWORKS_API_KEY,
 			synthesisPrompt,

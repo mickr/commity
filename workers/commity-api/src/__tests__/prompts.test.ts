@@ -276,8 +276,34 @@ describe("buildFinalPrompt", () => {
 		const override = "Custom prompt: create a conventional commit with type and scope.";
 		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com", override);
 
-		expect(result).toBe(override);
+		expect(result).toContain("Custom prompt");
 		expect(result).not.toContain("Output format:");
+	});
+
+	it("replaces {{branch}} template variable", () => {
+		const override = "Generate commit for branch: {{branch}}";
+		const result = buildFinalPrompt(mockSummaries, "feature/auth", "test@example.com", override);
+
+		expect(result).toContain("Generate commit for branch: feature/auth");
+		expect(result).not.toContain("{{branch}}");
+	});
+
+	it("replaces {{author}} template variable", () => {
+		const override = "Author: {{author}} - create a commit message";
+		const result = buildFinalPrompt(mockSummaries, "main", "john@example.com", override);
+
+		expect(result).toContain("Author: john@example.com");
+		expect(result).not.toContain("{{author}}");
+	});
+
+	it("replaces both {{branch}} and {{author}} template variables", () => {
+		const override = "Branch: {{branch}}, Author: {{author}}";
+		const result = buildFinalPrompt(mockSummaries, "develop", "alice@company.com", override);
+
+		expect(result).toContain("Branch: develop");
+		expect(result).toContain("Author: alice@company.com");
+		expect(result).not.toContain("{{branch}}");
+		expect(result).not.toContain("{{author}}");
 	});
 
 	it("handles single summary", () => {
@@ -518,5 +544,34 @@ describe("buildSynthesisPrompt", () => {
 		const result = buildSynthesisPrompt(summaries);
 
 		expect(result).toContain("unknown: Some changes");
+	});
+
+	it("replaces {{branch}} template variable in override", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "Generate commit for branch: {{branch}}";
+		const result = buildSynthesisPrompt(summaries, "feature/auth", "test@example.com", override);
+
+		expect(result).toContain("Generate commit for branch: feature/auth");
+		expect(result).not.toContain("{{branch}}");
+	});
+
+	it("replaces {{author}} template variable in override", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "Author: {{author}} - create a commit";
+		const result = buildSynthesisPrompt(summaries, "main", "john@example.com", override);
+
+		expect(result).toContain("Author: john@example.com");
+		expect(result).not.toContain("{{author}}");
+	});
+
+	it("replaces both template variables in override", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "Branch: {{branch}}, Author: {{author}}";
+		const result = buildSynthesisPrompt(summaries, "develop", "alice@company.com", override);
+
+		expect(result).toContain("Branch: develop");
+		expect(result).toContain("Author: alice@company.com");
+		expect(result).not.toContain("{{branch}}");
+		expect(result).not.toContain("{{author}}");
 	});
 });

@@ -154,6 +154,8 @@ Return only the explanation without any additional text or formatting.`;
 
 export function buildSynthesisPrompt(
 	summaries: Array<{ folder?: string; path?: string; summary: string }>,
+	branch?: string,
+	author?: string,
 	override?: string,
 ): string {
 	const summariesText = summaries
@@ -163,18 +165,16 @@ export function buildSynthesisPrompt(
 		})
 		.join("\n");
 
-	if (override) {
-		return `${override}
+	const basePrompt = override
+		? `${override}
 
 ${summariesText}
 
 IMPORTANT FOR STREAMING: When generating multi-line output, you MUST use actual newline characters.
 - Each bullet point or separate line MUST be on its own line with a newline character
 - Add a blank line between the subject and bullet points if present
-- This ensures proper display during streaming output`;
-	}
-
-	return `Generate a Git commit message from these changes:
+- This ensures proper display during streaming output`
+		: `Generate a Git commit message from these changes:
 
 ${summariesText}
 
@@ -210,6 +210,10 @@ Fix authentication and update dependencies
 - Add Claude Agent SDK dependency
 
 Return only the commit message with proper newlines.`;
+
+	return basePrompt
+		.replace(/\{\{branch\}\}/g, branch || '')
+		.replace(/\{\{author\}\}/g, author || '');
 }
 
 export function buildFinalPrompt(
@@ -248,5 +252,7 @@ Guidelines:
 
 Return only the commit message without any additional text, explanations, or formatting.`;
 
-	return basePrompt;
+	return basePrompt
+		.replace(/\{\{branch\}\}/g, branch)
+		.replace(/\{\{author\}\}/g, author);
 }
