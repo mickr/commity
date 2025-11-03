@@ -1,3 +1,11 @@
+# [0.6.0](https://github.com/mickr/commity/compare/v0.5.0...v0.6.0) (2025-11-03)
+
+
+### Features
+
+* correct regex pattern for formatting commit messages ([eea301f](https://github.com/mickr/commity/commit/eea301f7b6d76266cc8290daaaeb01af10a370c3))
+* implement streaming commit message generation and update API routes ([fe9178b](https://github.com/mickr/commity/commit/fe9178b77d74398150e293b3312fbe7e64b253e7))
+
 # [0.5.0](https://github.com/mickr/commity/compare/v0.4.0...v0.5.0) (2025-11-03)
 
 
