@@ -64,7 +64,7 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 					if (formatted.includes("- ")) {
 						formatted = formatted
 							.replace(/^(.+?)- /, "$1\n\n- ")
-							.replace(/- ([^\-]+?)- /g, "- $1\n- ");
+							.replace(/- ([^-]+?)- /g, "- $1\n- ");
 					}
 					
 					repository.inputBox.value = formatted;

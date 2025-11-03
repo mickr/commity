@@ -73,8 +73,12 @@ describe("generateCommitMessage", () => {
 	});
 
 	it("generates commit message successfully", async () => {
-		const mockGenerateCommitMessage = jest.fn().mockResolvedValue("Test commit message");
-		mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+		const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+			yield "Test ";
+			yield "commit ";
+			yield "message";
+		});
+		mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 		await generateCommitMessage(mockContext);
 
@@ -112,10 +116,11 @@ describe("generateCommitMessage", () => {
 
 	describe("Error Handling", () => {
 		it("handles cancellation gracefully", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				Object.assign(new Error("User cancelled"), { name: "AbortError" })
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw Object.assign(new Error("User cancelled"), { name: "AbortError" });
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -127,10 +132,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles rate limit error (429)", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("Fireworks API error: 429 - Rate limit exceeded")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("Fireworks API error: 429 - Rate limit exceeded");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -140,10 +146,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles rate limit error with lowercase text", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("rate limit exceeded after retries")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("rate limit exceeded after retries");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -153,10 +160,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles 500 server error", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("Fireworks API error: 500 - Internal server error")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("Fireworks API error: 500 - Internal server error");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -166,10 +174,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles 503 server error", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("Fireworks API error: 503 - Service unavailable")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("Fireworks API error: 503 - Service unavailable");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -179,10 +188,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles 400 bad request error", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("Fireworks API error: 400 - Bad request")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("Fireworks API error: 400 - Bad request");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -192,10 +202,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles 401 unauthorized error", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("Fireworks API error: 401 - Unauthorized")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("Fireworks API error: 401 - Unauthorized");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -205,10 +216,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles 403 forbidden error", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("Fireworks API error: 403 - Forbidden")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("Fireworks API error: 403 - Forbidden");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -218,10 +230,11 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles generic errors", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue(
-				new Error("Unexpected error occurred")
-			);
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				throw new Error("Unexpected error occurred");
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -231,8 +244,12 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("handles non-Error objects", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockRejectedValue("String error");
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "";
+				// eslint-disable-next-line no-throw-literal
+				throw "String error";
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			await generateCommitMessage(mockContext);
 
@@ -244,8 +261,10 @@ describe("generateCommitMessage", () => {
 
 	describe("Configuration Override", () => {
 		it("includes configuration override in request", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockResolvedValue("Test message");
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "Test message";
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			mockReadConfiguration.mockReturnValue({
 				success: true,
@@ -254,7 +273,7 @@ describe("generateCommitMessage", () => {
 
 			await generateCommitMessage(mockContext);
 
-			expect(mockGenerateCommitMessage).toHaveBeenCalledWith(
+			expect(mockStreamCommitMessage).toHaveBeenCalledWith(
 				expect.objectContaining({
 					override: "Custom prompt template",
 				}),
@@ -263,14 +282,16 @@ describe("generateCommitMessage", () => {
 		});
 
 		it("passes undefined override when config read fails", async () => {
-			const mockGenerateCommitMessage = jest.fn().mockResolvedValue("Test message");
-			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "Test message";
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
 			mockReadConfiguration.mockReturnValue({ success: false, data: undefined });
 
 			await generateCommitMessage(mockContext);
 
-			expect(mockGenerateCommitMessage).toHaveBeenCalledWith(
+			expect(mockStreamCommitMessage).toHaveBeenCalledWith(
 				expect.objectContaining({
 					override: undefined,
 				}),
