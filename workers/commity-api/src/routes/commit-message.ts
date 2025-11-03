@@ -1,10 +1,8 @@
 import type { Context } from "hono";
 import type { Bindings, CommitMessageRequest } from "../types";
 import { checkRateLimit } from "../utils/rate-limit";
-import { buildPrompt, buildChunkPrompt, buildFinalPrompt } from "../prompts";
-import { chunkDiffs } from "../utils/diff-chunker";
-import { summarizeChunk, generateFinalMessage } from "../utils/llm-client";
-import { processWithAdaptiveConcurrency } from "../utils/adaptive-concurrency";
+import { buildFolderPrompt, buildSynthesisPrompt } from "../prompts";
+import { generateFinalMessage, callLLM } from "../utils/llm-client";
 
 export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 	const ip = c.req.header("cf-connecting-ip") || "unknown";
@@ -30,45 +28,40 @@ export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 		return c.json({ error: "Invalid author" }, 400);
 	}
 
-	const prompt = buildPrompt(
-		body.diffs,
-		body.branch,
-		body.author,
-		body.override,
-	);
-
 	try {
-		let finalMessage: string;
+		const folderGroups = body.diffs.reduce(
+			(acc, diff) => {
+				const folder = diff.path.includes("/")
+					? diff.path.substring(0, diff.path.lastIndexOf("/"))
+					: ".";
+				if (!acc[folder]) {
+					acc[folder] = [];
+				}
+				acc[folder].push(diff);
+				return acc;
+			},
+			{} as Record<string, Array<{ path: string; diff: string }>>,
+		);
 
-		if (prompt.length > 50000) {
-			const chunks = chunkDiffs(body.diffs);
-			const summaries: string[] = [];
-
-			for (const chunk of chunks) {
-				const chunkPrompt = buildChunkPrompt(chunk.files);
-				const summary = await summarizeChunk(
+		const folderSummaries = await Promise.all(
+			Object.entries(folderGroups).map(async ([folder, files]) => {
+				const folderPrompt = buildFolderPrompt(folder, files);
+				const summary = await callLLM(
 					c.env.FIREWORKS_API_KEY,
-					chunkPrompt,
+					folderPrompt,
+					"accounts/fireworks/models/llama-v3p1-8b-instruct",
+					3,
+					0.2,
 				);
-				summaries.push(summary);
-			}
+				return { folder, summary };
+			}),
+		);
 
-			const finalPrompt = buildFinalPrompt(
-				summaries,
-				body.branch,
-				body.author,
-				body.override,
-			);
-			finalMessage = await generateFinalMessage(
-				c.env.FIREWORKS_API_KEY,
-				finalPrompt,
-			);
-		} else {
-			finalMessage = await generateFinalMessage(
-				c.env.FIREWORKS_API_KEY,
-				prompt,
-			);
-		}
+		const synthesisPrompt = buildSynthesisPrompt(folderSummaries);
+		const finalMessage = await generateFinalMessage(
+			c.env.FIREWORKS_API_KEY,
+			synthesisPrompt,
+		);
 
 		return c.json({ message: finalMessage });
 	} catch (error) {

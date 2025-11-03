@@ -2,6 +2,8 @@ import {
 	buildPrompt, 
 	buildChunkPrompt, 
 	buildFinalPrompt,
+	buildFolderPrompt,
+	buildSynthesisPrompt,
 	defaultGeneralPrompt, 
 	defaultCommitMessagePrompt 
 } from "../prompts";
@@ -343,5 +345,178 @@ describe("defaultCommitMessagePrompt", () => {
 
 	it("instructs to return only the commit message", () => {
 		expect(defaultCommitMessagePrompt).toContain("Return only the commit message");
+	});
+});
+
+describe("buildFolderPrompt", () => {
+	const mockFiles = [
+		{
+			path: "src/auth/login.ts",
+			diff: `@@ -1,3 +1,5 @@
++import bcrypt from 'bcrypt';
++
+ export function login(user: string, password: string) {
+-  return user === 'admin' && password === 'admin';
++  return verifyPassword(user, password);
+ }`
+		},
+		{
+			path: "src/auth/logout.ts",
+			diff: `@@ -0,0 +1,3 @@
++export function logout(sessionId: string) {
++  return clearSession(sessionId);
++}`
+		}
+	];
+
+	it("includes folder path in prompt", () => {
+		const result = buildFolderPrompt("src/auth", mockFiles);
+
+		expect(result).toContain("Folder: src/auth");
+	});
+
+	it("includes number of files", () => {
+		const result = buildFolderPrompt("src/auth", mockFiles);
+
+		expect(result).toContain("Number of files: 2");
+	});
+
+	it("formats all files with paths and diffs", () => {
+		const result = buildFolderPrompt("src/auth", mockFiles);
+
+		expect(result).toContain("File: src/auth/login.ts");
+		expect(result).toContain(mockFiles[0].diff);
+		expect(result).toContain("File: src/auth/logout.ts");
+		expect(result).toContain(mockFiles[1].diff);
+	});
+
+	it("requests concise summary", () => {
+		const result = buildFolderPrompt("src/auth", mockFiles);
+
+		expect(result).toContain("concise summary");
+		expect(result).toContain("overall functional purpose");
+	});
+
+	it("provides examples", () => {
+		const result = buildFolderPrompt("src/auth", mockFiles);
+
+		expect(result).toContain("Add authentication middleware");
+		expect(result).toContain("Refactor API routes");
+	});
+
+	it("instructs to return only summary", () => {
+		const result = buildFolderPrompt("src/auth", mockFiles);
+
+		expect(result).toContain("Return only the summary");
+	});
+
+	it("handles single file in folder", () => {
+		const result = buildFolderPrompt("src/utils", [mockFiles[0]]);
+
+		expect(result).toContain("Folder: src/utils");
+		expect(result).toContain("Number of files: 1");
+		expect(result).toContain("File: src/auth/login.ts");
+	});
+
+	it("handles root directory", () => {
+		const rootFiles = [
+			{ path: "package.json", diff: "+dependency" },
+			{ path: "README.md", diff: "+docs" }
+		];
+		const result = buildFolderPrompt(".", rootFiles);
+
+		expect(result).toContain("Folder: .");
+		expect(result).toContain("Number of files: 2");
+	});
+
+	it("separates files with double newlines", () => {
+		const result = buildFolderPrompt("src/auth", mockFiles);
+
+		expect(result).toMatch(/File: src\/auth\/login\.ts\n.*\n\nFile: src\/auth\/logout\.ts/s);
+	});
+});
+
+describe("buildSynthesisPrompt", () => {
+	it("handles folder summaries", () => {
+		const folderSummaries = [
+			{ folder: "src/auth", summary: "Add authentication middleware and session handling" },
+			{ folder: "src/api", summary: "Update API routes to use new error handling" }
+		];
+
+		const result = buildSynthesisPrompt(folderSummaries);
+
+		expect(result).toContain("src/auth: Add authentication middleware");
+		expect(result).toContain("src/api: Update API routes");
+	});
+
+	it("handles file summaries (backward compatibility)", () => {
+		const fileSummaries = [
+			{ path: "src/auth/login.ts", summary: "Add bcrypt password hashing" },
+			{ path: "src/auth/logout.ts", summary: "Implement session clearing" }
+		];
+
+		const result = buildSynthesisPrompt(fileSummaries);
+
+		expect(result).toContain("src/auth/login.ts: Add bcrypt");
+		expect(result).toContain("src/auth/logout.ts: Implement session");
+	});
+
+	it("handles mixed folder and path summaries", () => {
+		const mixedSummaries = [
+			{ folder: "src/auth", summary: "Authentication updates" },
+			{ path: "README.md", summary: "Documentation changes" }
+		];
+
+		const result = buildSynthesisPrompt(mixedSummaries);
+
+		expect(result).toContain("src/auth: Authentication updates");
+		expect(result).toContain("README.md: Documentation changes");
+	});
+
+	it("specifies commit message format", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const result = buildSynthesisPrompt(summaries);
+
+		expect(result).toContain("Subject line (50-72 chars");
+		expect(result).toContain("imperative mood");
+		expect(result).toContain("capitalize");
+	});
+
+	it("includes guidelines", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const result = buildSynthesisPrompt(summaries);
+
+		expect(result).toContain("Focus on WHAT changed");
+		expect(result).toContain("Never mention file paths");
+		expect(result).toContain("Never sign or mention AI generation");
+	});
+
+	it("provides examples", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const result = buildSynthesisPrompt(summaries);
+
+		expect(result).toContain("Add revenue analytics dashboard");
+		expect(result).toContain("Fix authentication and update dependencies");
+	});
+
+	it("handles empty summaries array", () => {
+		const result = buildSynthesisPrompt([]);
+
+		expect(result).toBeDefined();
+		expect(result).toContain("Generate a Git commit message");
+	});
+
+	it("instructs to return only commit message", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const result = buildSynthesisPrompt(summaries);
+
+		expect(result).toContain("Return only the commit message");
+	});
+
+	it("handles summary without folder or path (fallback)", () => {
+		const summaries = [{ summary: "Some changes" }];
+		const result = buildSynthesisPrompt(summaries);
+
+		expect(result).toContain("unknown: Some changes");
 	});
 });

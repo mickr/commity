@@ -74,6 +74,46 @@ export function buildPrompt(
 		.replace(/\{\{author\}\}/g, author);
 }
 
+export function buildFilePrompt(path: string, diff: string): string {
+	return `Analyze this file change and provide a brief summary.
+
+File: ${path}
+${diff}
+
+Provide a concise one-line summary of what changed in this file. Focus on the key functional change.
+
+Examples:
+- Add user authentication middleware
+- Fix null pointer error in data processing
+- Update API response structure
+- Remove deprecated feature flag
+
+Return only the summary without any additional text or formatting.`;
+}
+
+export function buildFolderPrompt(folder: string, files: Array<{ path: string; diff: string }>): string {
+	const changesText = files
+		.map(({ path, diff }) => `File: ${path}\n${diff}`)
+		.join("\n\n");
+
+	return `Analyze changes in this folder and provide a brief summary.
+
+Folder: ${folder}
+Number of files: ${files.length}
+
+${changesText}
+
+Provide a concise summary of what changed in this folder. Focus on the overall functional purpose of the changes.
+
+Examples:
+- Add authentication middleware and session handling
+- Refactor API routes to use new error handling
+- Update database models for user preferences
+- Fix memory leaks in data processing pipeline
+
+Return only the summary without any additional text or formatting.`;
+}
+
 export function buildChunkPrompt(files: DiffEntry[]): string {
 	const changesText = files
 		.map(({ path, diff }) => `File: ${path}\n${diff}`)
@@ -103,6 +143,50 @@ Provide a detailed explanation of the changes. For each significant change, desc
 Use bullet points (starting with "- ", capitalized, no trailing period) for clarity. Be thorough but concise.
 
 Return only the explanation without any additional text or formatting.`;
+}
+
+export function buildSynthesisPrompt(
+	summaries: Array<{ folder?: string; path?: string; summary: string }>,
+): string {
+	const summariesText = summaries
+		.map(({ folder, path, summary }) => {
+			const location = folder || path || 'unknown';
+			return `${location}: ${summary}`;
+		})
+		.join("\n");
+
+	return `Generate a Git commit message from these changes:
+
+${summariesText}
+
+Create a cohesive, readable commit message. Identify the main purpose of the changes and group related items logically.
+
+Format:
+- Subject line (50-72 chars, imperative mood, capitalize, no period)
+- If multiple significant changes, add a blank line then flat bullet points
+- Each bullet: "- " + description (capitalize, no period)
+- Keep bullets concise - combine related changes into single bullets
+- No nested bullets or sub-sections
+
+Guidelines:
+- Use imperative mood ("Add" not "Added")
+- Focus on WHAT changed, not implementation details
+- Combine related changes into logical groups
+- Never mention file paths or technical internals
+- Never sign or mention AI generation
+
+Examples:
+
+Add revenue analytics dashboard
+- Display customer lifetime value statistics
+- Show revenue breakdown by service type
+- Add interactive chart with date filtering
+
+Fix authentication and update dependencies
+- Restrict user resource to super admin access
+- Add Claude Agent SDK dependency
+
+Return only the commit message.`;
 }
 
 export function buildFinalPrompt(
