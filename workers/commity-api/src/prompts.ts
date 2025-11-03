@@ -64,8 +64,15 @@ export function buildPrompt(
 		.map(({ path, diff }) => `File: ${path}\n${diff}`)
 		.join("\n\n");
 
+	const streamingFormatting = `
+IMPORTANT FOR STREAMING: When generating multi-line output, you MUST use actual newline characters.
+- Each bullet point or separate line MUST be on its own line with a newline character
+- Add a blank line between the subject and bullet points if present
+- This ensures proper display during streaming output
+`;
+
 	const systemPrompt = override
-		? `${defaultGeneralPrompt}\n\n${override}`
+		? `${defaultGeneralPrompt}\n\n${override}\n\n${streamingFormatting}`
 		: defaultCommitMessagePrompt;
 
 	return systemPrompt
@@ -161,10 +168,12 @@ ${summariesText}
 
 Create a cohesive, readable commit message. Identify the main purpose of the changes and group related items logically.
 
+CRITICAL: You MUST use actual newline characters (\\n) to separate lines. Each bullet point MUST be on its own line.
+
 Format:
 - Subject line (50-72 chars, imperative mood, capitalize, no period)
 - If multiple significant changes, add a blank line then flat bullet points
-- Each bullet: "- " + description (capitalize, no period)
+- Each bullet MUST start on a new line: "- " + description (capitalize, no period)
 - Keep bullets concise - combine related changes into single bullets
 - No nested bullets or sub-sections
 
@@ -175,18 +184,20 @@ Guidelines:
 - Never mention file paths or technical internals
 - Never sign or mention AI generation
 
-Examples:
+Examples (note the newlines):
 
 Add revenue analytics dashboard
+
 - Display customer lifetime value statistics
 - Show revenue breakdown by service type
 - Add interactive chart with date filtering
 
 Fix authentication and update dependencies
+
 - Restrict user resource to super admin access
 - Add Claude Agent SDK dependency
 
-Return only the commit message.`;
+Return only the commit message with proper newlines.`;
 }
 
 export function buildFinalPrompt(

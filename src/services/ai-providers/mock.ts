@@ -20,4 +20,15 @@ export class MockLLMProvider implements LLMProvider {
 	): Promise<string> {
 		return this.mockResponse;
 	}
+
+	async *streamCommitMessage(
+		_request: CommitMessageRequest,
+		_signal?: AbortSignal
+	): AsyncGenerator<string> {
+		const words = this.mockResponse.split(" ");
+		for (const word of words) {
+			yield `${word} `;
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+	}
 }

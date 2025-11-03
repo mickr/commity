@@ -75,3 +75,50 @@ export async function generateFinalMessage(
 ): Promise<string> {
 	return callLLM(apiKey, prompt, "accounts/fireworks/models/gpt-oss-120b");
 }
+
+export async function* streamFinalMessage(
+	apiKey: string,
+	prompt: string,
+): AsyncGenerator<string> {
+	const client = new OpenAI({
+		apiKey,
+		baseURL: "https://api.fireworks.ai/inference/v1",
+	});
+
+	try {
+		const stream = await client.chat.completions.create({
+			model: "accounts/fireworks/models/gpt-oss-120b",
+			messages: [{ role: "user", content: prompt }],
+			temperature: 0.2,
+			stream: true,
+		});
+
+		for await (const chunk of stream) {
+			const content = chunk.choices[0]?.delta?.content;
+			if (content) {
+				yield content;
+			}
+		}
+	} catch (error) {
+		if (error instanceof OpenAI.APIError) {
+			if (error.status === 429) {
+				throw new RateLimitError("Rate limit exceeded");
+			}
+
+			if (error.status && error.status >= 500) {
+				throw new LLMServerError(
+					"LLM service temporarily unavailable. Please try again later.",
+				);
+			}
+
+			if (error.status && error.status >= 400) {
+				throw new LLMClientError(
+					`Invalid request to LLM service: ${error.message}`,
+					error.status,
+				);
+			}
+		}
+
+		throw error;
+	}
+}

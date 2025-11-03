@@ -90,4 +90,65 @@ export class FireworksProvider implements LLMProvider {
 
 		return data.message;
 	}
+
+	async *streamCommitMessage(
+		request: CommitMessageRequest,
+		signal?: AbortSignal
+	): AsyncGenerator<string> {
+		const endpoint = new URL("/api/commit-message/stream", this.baseUrl).toString();
+
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(request),
+			signal,
+		});
+
+		if (!response.ok) {
+			const error = (await response.json().catch(() => null)) as FireworksErrorResponse | null;
+			throw new Error(
+				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`
+			);
+		}
+
+		if (!response.body) {
+			throw new Error("Response body is null");
+		}
+
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let buffer = "";
+
+		try {
+			while (true) {
+				const { done, value } = await reader.read();
+
+				if (done) {
+					break;
+				}
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split("\n");
+				buffer = lines.pop() || "";
+
+				for (const line of lines) {
+					if (line.startsWith("data: ")) {
+						const data = line.slice(6);
+						if (data.trim()) {
+							yield data;
+						}
+					} else if (line.startsWith("event: error")) {
+						const nextLine = lines.shift();
+						if (nextLine?.startsWith("data: ")) {
+							throw new Error(nextLine.slice(6));
+						}
+					}
+				}
+			}
+		} finally {
+			reader.releaseLock();
+		}
+	}
 }

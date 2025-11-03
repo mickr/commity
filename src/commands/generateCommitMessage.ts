@@ -41,7 +41,7 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 	};
 
 	try {
-		const message = await vscode.window.withProgress(
+		await vscode.window.withProgress(
 			{
 				location: vscode.ProgressLocation.Notification,
 				title: "Generating commit message...",
@@ -54,11 +54,24 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 					abortController.abort();
 				});
 
-				return await client.generateCommitMessage(request, abortController.signal);
+				repository.inputBox.value = "";
+				let accumulatedMessage = "";
+
+				for await (const chunk of client.streamCommitMessage(request, abortController.signal)) {
+					accumulatedMessage += chunk;
+					
+					let formatted = accumulatedMessage;
+					if (formatted.includes("- ")) {
+						formatted = formatted
+							.replace(/^(.+?)- /, "$1\n\n- ")
+							.replace(/- ([^\-]+?)- /g, "- $1\n- ");
+					}
+					
+					repository.inputBox.value = formatted;
+				}
 			}
 		);
 
-		repository.inputBox.value = message;
 		vscode.window.setStatusBarMessage("Commity: Commit message generated!", 5000);
 	} catch (error) {
 		if (error instanceof Error) {
