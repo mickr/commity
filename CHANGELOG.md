@@ -1,3 +1,10 @@
+# [0.10.0](https://github.com/mickr/commity/compare/v0.9.0...v0.10.0) (2025-11-03)
+
+
+### Features
+
+* **git:** add branch and author support to commit generation ([702d4bd](https://github.com/mickr/commity/commit/702d4bdb99dc12c6c4ec8df76ae485bd28fc3ebe))
+
 # [0.9.0](https://github.com/mickr/commity/compare/v0.8.0...v0.9.0) (2025-11-03)
 
 
