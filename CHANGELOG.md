@@ -1,3 +1,15 @@
+# [0.8.0](https://github.com/mickr/commity/compare/v0.7.0...v0.8.0) (2025-11-03)
+
+
+### Bug Fixes
+
+* **config:** update publisher name to ryanlabs ([4827fb4](https://github.com/mickr/commity/commit/4827fb49c01427a37ac8d51476e9fb9c5a40f8e2))
+
+
+### Features
+
+* **extension:** update branding and marketing language in commit ([ae591c0](https://github.com/mickr/commity/commit/ae591c01a2be89fe4b4488906b9730bb46cfb24e))
+
 # [0.7.0](https://github.com/mickr/commity/compare/v0.6.0...v0.7.0) (2025-11-03)
 
 
