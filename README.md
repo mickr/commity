@@ -1,12 +1,16 @@
-# Commity
+# Commity.ai
 
-AI-powered commit message generator that analyzes your staged changes and generates meaningful commit messages following best practices.
+Lightning-fast AI commit messages. Smart, instant, and context-aware.
+
+Generate meaningful commit messages in milliseconds by analyzing your staged changes with advanced AI. Built for developers who value speed and quality.
 
 ## Features
 
-- **One-Click Generation**: Generate commit messages instantly from the Source Control toolbar
-- **Context-Aware**: Analyzes your staged changes, current branch, and author information
-- **Customizable**: Configure commit message format using `.commity.yaml`
+- **Lightning Fast**: Sub-second commit message generation
+- **Smart Analysis**: Deep understanding of code changes and context
+- **One-Click Generation**: Instant messages from the Source Control toolbar
+- **Context-Aware**: Analyzes staged changes, branch, and author information
+- **Customizable**: Configure message format using `.commity.yaml`
 - **Conventional Commits**: Supports Conventional Commits specification out of the box
 
 ## Usage

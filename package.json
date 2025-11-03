@@ -1,10 +1,10 @@
 {
-	"name": "commity",
-	"displayName": "Commity",
-	"description": "AI-powered commit message generator",
+	"name": "commity-ai",
+	"displayName": "Commity.ai",
+	"description": "Lightning-fast AI commit messages. Smart, instant, and context-aware.",
 	"version": "0.7.0",
-	"publisher": "ryanlabs",
-	"author": "Mick Ryan",
+	"publisher": "Ryan Labs",
+	"author": "mickcodez",
 	"license": "SEE LICENSE IN LICENSE",
 	"repository": {
 		"type": "git",
@@ -14,24 +14,14 @@
 		"url": "https://github.com/mickr/commity/issues"
 	},
 	"homepage": "https://commity.ai",
-	"keywords": [
-		"git",
-		"commit",
-		"ai",
-		"commit-message",
-		"scm"
-	],
+	"keywords": ["git", "commit", "ai", "commit-message", "scm"],
 	"engines": {
 		"vscode": "^1.80.0"
 	},
-	"categories": [
-		"SCM Providers"
-	],
+	"categories": ["SCM Providers"],
 	"activationEvents": [],
 	"main": "./out/extension.js",
-	"extensionDependencies": [
-		"vscode.git"
-	],
+	"extensionDependencies": ["vscode.git"],
 	"contributes": {
 		"commands": [
 			{
