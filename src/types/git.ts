@@ -7,6 +7,7 @@ export interface Change {
 export interface Repository {
 	state: {
 		indexChanges: Change[];
+		workingTreeChanges: Change[];
 		HEAD: {
 			name: string;
 		};

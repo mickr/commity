@@ -45,7 +45,7 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: changes },
+			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -71,7 +71,7 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: changes },
+			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -102,7 +102,7 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: changes },
+			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -129,7 +129,7 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: changes },
+			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -156,7 +156,7 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: changes },
+			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -182,7 +182,7 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: changes },
+			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 

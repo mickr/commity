@@ -58,7 +58,7 @@ export function getStagedChangesPaths(): Change[] {
 		return [];
 	}
 
-	const changes: Change[] = repository.state.indexChanges;
+	const changes: Change[] = repository.state.workingTreeChanges;
 	const cwd = repository.rootUri.fsPath;
 
 	return changes.filter((change) => {
@@ -91,7 +91,7 @@ export function getStagedDiff(): StagedDiffs {
 			const rel = toPosixRelative(cwd, filePath);
 			const diff = execFileSync(
 				"git",
-				["diff", "--cached", "--no-color", "--no-ext-diff", "--", filePath],
+				["diff", "--no-color", "--no-ext-diff", "--", filePath],
 				{ cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }
 			);
 
@@ -124,7 +124,6 @@ export function getCurrentAuthor(): string {
 	try {
 		const gitConfig = execSync("git config user.name", { encoding: "utf-8" });
 		return gitConfig.trim();
-		0;
 	} catch (error) {
 		console.error("Error getting current author:", error);
 		return "";
