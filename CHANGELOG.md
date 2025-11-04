@@ -1,3 +1,10 @@
+# [0.12.0](https://github.com/mickr/commity/compare/v0.11.0...v0.12.0) (2025-11-04)
+
+
+### Features
+
+* **git:** update repository state to include workingTreeChanges for staged changes ([ecd6d22](https://github.com/mickr/commity/commit/ecd6d22152836ec1e0cef594dcd1ceca831df50e))
+
 # [0.11.0](https://github.com/mickr/commity/compare/v0.10.0...v0.11.0) (2025-11-04)
 
 
