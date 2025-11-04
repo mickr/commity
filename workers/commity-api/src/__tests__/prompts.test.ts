@@ -517,12 +517,12 @@ describe("buildSynthesisPrompt", () => {
 		expect(result).toContain("Never sign or mention AI generation");
 	});
 
-	it("provides examples", () => {
+	it("includes formatting instructions", () => {
 		const summaries = [{ folder: "src", summary: "Changes" }];
 		const result = buildSynthesisPrompt(summaries);
 
-		expect(result).toContain("Add revenue analytics dashboard");
-		expect(result).toContain("Fix authentication and update dependencies");
+		expect(result).toContain("CRITICAL: You MUST use actual newline characters");
+		expect(result).toContain("Each bullet MUST start on a new line");
 	});
 
 	it("handles empty summaries array", () => {
@@ -573,5 +573,44 @@ describe("buildSynthesisPrompt", () => {
 		expect(result).toContain("Author: alice@company.com");
 		expect(result).not.toContain("{{branch}}");
 		expect(result).not.toContain("{{author}}");
+	});
+
+	it("replaces {{changes}} template variable in override", () => {
+		const summaries = [
+			{ folder: "src/auth", summary: "Add authentication" },
+			{ folder: "src/api", summary: "Update API routes" }
+		];
+		const override = "Changes:\n{{changes}}\n\nGenerate commit message.";
+		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override);
+
+		expect(result).toContain("src/auth: Add authentication");
+		expect(result).toContain("src/api: Update API routes");
+		expect(result).not.toContain("{{changes}}");
+	});
+
+	it("replaces all template variables ({{changes}}, {{branch}}, {{author}}) in override", () => {
+		const summaries = [{ folder: "src", summary: "Refactor authentication" }];
+		const override = `Branch: {{branch}}
+Author: {{author}}
+Changes: {{changes}}
+
+Generate conventional commit.`;
+		const result = buildSynthesisPrompt(summaries, "feature/auth", "dev@example.com", override);
+
+		expect(result).toContain("Branch: feature/auth");
+		expect(result).toContain("Author: dev@example.com");
+		expect(result).toContain("src: Refactor authentication");
+		expect(result).not.toContain("{{branch}}");
+		expect(result).not.toContain("{{author}}");
+		expect(result).not.toContain("{{changes}}");
+	});
+
+	it("includes streaming instructions when override is provided", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "Custom prompt";
+		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override);
+
+		expect(result).toContain("IMPORTANT FOR STREAMING");
+		expect(result).toContain("actual newline characters");
 	});
 });
