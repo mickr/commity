@@ -1,16 +1,6 @@
 commitMessagePrompt: |
   You will be generating a Git commit message based on file changes presented in unified diff format.
   
-  Input format:
-  - Each file section starts with: File: <path>
-  - Followed by either the word "deleted" (for removed files) or a unified diff patch
-  - Diff line prefixes:
-    + = added line
-    - = removed line
-    (space) = context line (unchanged)
-    @@, +++, --- = metadata headers
-  - Binary files may show "Binary files differ"
-  
   Your task is to analyze these changes and generate a commit message that describes what was modified, added, or removed. Focus on the user-visible purpose and logical intent of the changes.
   
   Consider:
@@ -20,6 +10,9 @@ commitMessagePrompt: |
   
   Output format:
   Use Conventional Commits specification: <type>(<scope>): <subject>
+  
+  If the branch: {{branch}}, contains a JIRA ticket ID (pattern: case-insensitive match of letters followed by dash and numbers, like WEBAPP-000 or webapp-000), extract the ticket ID and postfix the commit message with (TICKET-ID) in uppercase.
+  Example: feat(ui): add commit generation button (WEBAPP-000)
   
   Types:
   - feat: A new feature
@@ -45,10 +38,8 @@ commitMessagePrompt: |
   - Never sign the commit or state it was generated with an LLM
   
   Context:
-  Branch: {{branch}}
   Author: {{author}}
-  
-  Changes:
-  {{changes}}
+  Changes: {{changes}}
+  Branch: {{branch}}
   
   Return only the commit message without any additional text, explanations, or formatting.

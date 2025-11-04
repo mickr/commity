@@ -5,7 +5,9 @@ import { checkRateLimit } from "../utils/rate-limit";
 import { buildFolderPrompt, buildSynthesisPrompt } from "../prompts";
 import { callLLM, streamFinalMessage } from "../utils/llm-client";
 
-export async function commitMessageStreamHandler(c: Context<{ Bindings: Bindings }>) {
+export async function commitMessageStreamHandler(
+	c: Context<{ Bindings: Bindings }>,
+) {
 	const ip = c.req.header("cf-connecting-ip") || "unknown";
 	const max = Number.parseInt(c.env.RATE_LIMIT_MAX) || 100;
 	const window = Number.parseInt(c.env.RATE_LIMIT_WINDOW) || 3600;
@@ -57,12 +59,19 @@ export async function commitMessageStreamHandler(c: Context<{ Bindings: Bindings
 				return { folder, summary };
 			}),
 		);
-
-		const synthesisPrompt = buildSynthesisPrompt(folderSummaries, body.branch, body.author, body.override);
+		const synthesisPrompt = buildSynthesisPrompt(
+			folderSummaries,
+			body.branch,
+			body.author,
+			body.override,
+		);
 
 		return streamSSE(c, async (stream) => {
 			try {
-				for await (const chunk of streamFinalMessage(c.env.FIREWORKS_API_KEY, synthesisPrompt)) {
+				for await (const chunk of streamFinalMessage(
+					c.env.FIREWORKS_API_KEY,
+					synthesisPrompt,
+				)) {
 					await stream.writeSSE({
 						data: chunk,
 					});

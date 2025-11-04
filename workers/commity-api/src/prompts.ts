@@ -98,7 +98,10 @@ Examples:
 Return only the summary without any additional text or formatting.`;
 }
 
-export function buildFolderPrompt(folder: string, files: Array<{ path: string; diff: string }>): string {
+export function buildFolderPrompt(
+	folder: string,
+	files: Array<{ path: string; diff: string }>,
+): string {
 	const changesText = files
 		.map(({ path, diff }) => `File: ${path}\n${diff}`)
 		.join("\n\n");
@@ -160,20 +163,20 @@ export function buildSynthesisPrompt(
 ): string {
 	const summariesText = summaries
 		.map(({ folder, path, summary }) => {
-			const location = folder || path || 'unknown';
+			const location = folder || path || "unknown";
 			return `${location}: ${summary}`;
 		})
 		.join("\n");
 
-	const basePrompt = override
-		? `${override}
-
-${summariesText}
-
+	const streamingInstructions = `
 IMPORTANT FOR STREAMING: When generating multi-line output, you MUST use actual newline characters.
 - Each bullet point or separate line MUST be on its own line with a newline character
 - Add a blank line between the subject and bullet points if present
-- This ensures proper display during streaming output`
+- This ensures proper display during streaming output
+`;
+
+	const basePrompt = override
+		? `${streamingInstructions}\n${override}`
 		: `Generate a Git commit message from these changes:
 
 ${summariesText}
@@ -196,24 +199,12 @@ Guidelines:
 - Never mention file paths or technical internals
 - Never sign or mention AI generation
 
-Examples (note the newlines):
-
-Add revenue analytics dashboard
-
-- Display customer lifetime value statistics
-- Show revenue breakdown by service type
-- Add interactive chart with date filtering
-
-Fix authentication and update dependencies
-
-- Restrict user resource to super admin access
-- Add Claude Agent SDK dependency
-
 Return only the commit message with proper newlines.`;
 
 	return basePrompt
-		.replace(/\{\{branch\}\}/g, branch || '')
-		.replace(/\{\{author\}\}/g, author || '');
+		.replace(/\{\{changes\}\}/g, summariesText)
+		.replace(/\{\{branch\}\}/g, branch || "")
+		.replace(/\{\{author\}\}/g, author || "");
 }
 
 export function buildFinalPrompt(
