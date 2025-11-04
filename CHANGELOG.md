@@ -1,3 +1,15 @@
+# [0.11.0](https://github.com/mickr/commity/compare/v0.10.0...v0.11.0) (2025-11-04)
+
+
+### Bug Fixes
+
+* **prompts:** improve formatting and clarity in commit message generation prompts ([da252dd](https://github.com/mickr/commity/commit/da252ddf98ed57666aeb8141166a82dbcdfe481c))
+
+
+### Features
+
+* **prompts:** enhance buildSynthesisPrompt with template variable replacements and formatting instructions ([40abcc0](https://github.com/mickr/commity/commit/40abcc0407c1c338c5d17055c9f48cf196bb512d))
+
 # [0.10.0](https://github.com/mickr/commity/compare/v0.9.0...v0.10.0) (2025-11-03)
 
 
