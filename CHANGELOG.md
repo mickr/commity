@@ -1,3 +1,10 @@
+# [0.13.0](https://github.com/mickr/commity/compare/v0.12.0...v0.13.0) (2025-11-05)
+
+
+### Features
+
+* **commit-message:** implement streaming commit message generation and remove deprecated endpoints ([0ede0b5](https://github.com/mickr/commity/commit/0ede0b5237a70f36e2d3f9c31ccc1faa4cb10313))
+
 # [0.12.0](https://github.com/mickr/commity/compare/v0.11.0...v0.12.0) (2025-11-04)
 
 

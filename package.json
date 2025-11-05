@@ -2,7 +2,7 @@
 	"name": "commity-ai",
 	"displayName": "Commity.ai",
 	"description": "Lightning-fast AI commit messages. Smart, instant, and context-aware.",
-	"version": "0.12.0",
+	"version": "0.13.0",
 	"publisher": "ryanlabs",
 	"author": "mickcodez",
 	"license": "SEE LICENSE IN LICENSE",
