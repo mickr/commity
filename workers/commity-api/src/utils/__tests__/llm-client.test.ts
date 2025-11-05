@@ -48,7 +48,8 @@ describe("callLLM", () => {
 		expect(mockCreate).toHaveBeenCalledWith({
 			model: testModel,
 			messages: [{ role: "user", content: testPrompt }],
-			temperature: 0.2,
+			temperature: 0,
+			max_tokens: undefined,
 		});
 	});
 

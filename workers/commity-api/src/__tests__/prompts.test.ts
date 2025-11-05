@@ -1,7 +1,5 @@
 import { 
 	buildPrompt, 
-	buildChunkPrompt, 
-	buildFinalPrompt,
 	buildFolderPrompt,
 	buildSynthesisPrompt,
 	defaultGeneralPrompt, 
@@ -149,182 +147,6 @@ Generate a conventional commit message.`;
 		const result = buildPrompt(mockDiffs, "main", "test@example.com");
 
 		expect(result).toMatch(/File: src\/index\.ts\n.*\n\nFile: src\/utils\.ts/s);
-	});
-});
-
-describe("buildChunkPrompt", () => {
-	const mockDiffs = [
-		{
-			path: "src/auth.ts",
-			diff: `@@ -1,5 +1,8 @@
-+import bcrypt from 'bcrypt';
-+
- export function login(user: string, password: string) {
--  return user === 'admin' && password === 'admin';
-+  const hash = getPasswordHash(user);
-+  return bcrypt.compare(password, hash);
- }`
-		},
-		{
-			path: "src/database.ts",
-			diff: `@@ -0,0 +1,3 @@
-+export function getPasswordHash(user: string): string {
-+  return db.query('SELECT hash FROM users WHERE username = ?', [user]);
-+}`
-		}
-	];
-
-	it("formats diffs with file paths", () => {
-		const result = buildChunkPrompt(mockDiffs);
-
-		expect(result).toContain("File: src/auth.ts");
-		expect(result).toContain(mockDiffs[0].diff);
-		expect(result).toContain("File: src/database.ts");
-		expect(result).toContain(mockDiffs[1].diff);
-	});
-
-	it("includes diff format explanation", () => {
-		const result = buildChunkPrompt(mockDiffs);
-
-		expect(result).toContain("unified diff format");
-		expect(result).toContain("+ = added line");
-		expect(result).toContain("- = removed line");
-		expect(result).toContain("@@, +++, --- = metadata headers");
-	});
-
-	it("requests detailed explanation in output", () => {
-		const result = buildChunkPrompt(mockDiffs);
-
-		expect(result).toContain("detailed explanation");
-		expect(result).toContain("What changed and why it matters");
-		expect(result).toContain("functional impact");
-	});
-
-	it("specifies bullet point format", () => {
-		const result = buildChunkPrompt(mockDiffs);
-
-		expect(result).toContain('starting with "- "');
-		expect(result).toContain("capitalized");
-		expect(result).toContain("no trailing period");
-	});
-
-	it("instructs to return only explanation", () => {
-		const result = buildChunkPrompt(mockDiffs);
-
-		expect(result).toContain("Return only the explanation");
-	});
-
-	it("handles single file", () => {
-		const result = buildChunkPrompt([mockDiffs[0]]);
-
-		expect(result).toContain("File: src/auth.ts");
-		expect(result).not.toContain("File: src/database.ts");
-	});
-
-	it("handles empty array", () => {
-		const result = buildChunkPrompt([]);
-
-		expect(result).toBeDefined();
-		expect(result).toContain("unified diff format");
-	});
-});
-
-describe("buildFinalPrompt", () => {
-	const mockSummaries = [
-		"- Add bcrypt for password hashing\n- Replace plaintext password comparison with hash verification",
-		"- Implement database query for password retrieval\n- Add user lookup by username"
-	];
-
-	it("formats summaries with chunk labels", () => {
-		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com");
-
-		expect(result).toContain("Chunk 1:");
-		expect(result).toContain(mockSummaries[0]);
-		expect(result).toContain("Chunk 2:");
-		expect(result).toContain(mockSummaries[1]);
-	});
-
-	it("separates chunks with double newlines", () => {
-		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com");
-
-		expect(result).toMatch(/Chunk 1:.*\n\nChunk 2:/s);
-	});
-
-	it("specifies output format for commit message", () => {
-		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com");
-
-		expect(result).toContain("Output format:");
-		expect(result).toContain("Subject line (one line, 50-72 characters");
-		expect(result).toContain("Optionally, a blank line followed by bullet points");
-	});
-
-	it("includes commit message guidelines", () => {
-		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com");
-
-		expect(result).toContain("imperative mood");
-		expect(result).toContain("Start with a capital letter");
-		expect(result).toContain("Focus on what the change accomplishes");
-	});
-
-	it("warns against signing commits", () => {
-		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com");
-
-		expect(result).toContain("Never sign the commit or state it was generated with an LLM");
-	});
-
-	it("uses custom override when provided", () => {
-		const override = "Custom prompt: create a conventional commit with type and scope.";
-		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com", override);
-
-		expect(result).toContain("Custom prompt");
-		expect(result).not.toContain("Output format:");
-	});
-
-	it("replaces {{branch}} template variable", () => {
-		const override = "Generate commit for branch: {{branch}}";
-		const result = buildFinalPrompt(mockSummaries, "feature/auth", "test@example.com", override);
-
-		expect(result).toContain("Generate commit for branch: feature/auth");
-		expect(result).not.toContain("{{branch}}");
-	});
-
-	it("replaces {{author}} template variable", () => {
-		const override = "Author: {{author}} - create a commit message";
-		const result = buildFinalPrompt(mockSummaries, "main", "john@example.com", override);
-
-		expect(result).toContain("Author: john@example.com");
-		expect(result).not.toContain("{{author}}");
-	});
-
-	it("replaces both {{branch}} and {{author}} template variables", () => {
-		const override = "Branch: {{branch}}, Author: {{author}}";
-		const result = buildFinalPrompt(mockSummaries, "develop", "alice@company.com", override);
-
-		expect(result).toContain("Branch: develop");
-		expect(result).toContain("Author: alice@company.com");
-		expect(result).not.toContain("{{branch}}");
-		expect(result).not.toContain("{{author}}");
-	});
-
-	it("handles single summary", () => {
-		const result = buildFinalPrompt([mockSummaries[0]], "main", "test@example.com");
-
-		expect(result).toContain("Chunk 1:");
-		expect(result).toContain(mockSummaries[0]);
-		expect(result).not.toContain("Chunk 2:");
-	});
-
-	it("handles empty summaries array", () => {
-		const result = buildFinalPrompt([], "main", "test@example.com");
-
-		expect(result).toBeDefined();
-		expect(result).toContain("Git commit message");
-	});
-
-	it("instructs to return only the commit message", () => {
-		const result = buildFinalPrompt(mockSummaries, "main", "test@example.com");
-
-		expect(result).toContain("Return only the commit message");
 	});
 });
 
@@ -520,7 +342,7 @@ describe("buildSynthesisPrompt", () => {
 		const summaries = [{ folder: "src", summary: "Changes" }];
 		const result = buildSynthesisPrompt(summaries);
 
-		expect(result).toContain("Format (use proper newlines)");
+		expect(result).toContain("Format:");
 		expect(result).toContain("Subject line:");
 	});
 

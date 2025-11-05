@@ -36,6 +36,7 @@ ${defaultGeneralPrompt}
 Output format:
 - Subject line (one line, 50-72 characters)
 - Optionally, a blank line followed by bullet points for significant changes
+- IMPORTANT: Each bullet MUST be on its own line (use newline character after each bullet)
 - Each bullet starts with "- ", capitalized, no trailing period
 
 Examples:
@@ -81,23 +82,6 @@ IMPORTANT FOR STREAMING: When generating multi-line output, you MUST use actual 
 		.replace(/\{\{author\}\}/g, author);
 }
 
-export function buildFilePrompt(path: string, diff: string): string {
-	return `Analyze this file change and provide a brief summary.
-
-File: ${path}
-${diff}
-
-Provide a concise one-line summary of what changed in this file. Focus on the key functional change.
-
-Examples:
-- Add user authentication middleware
-- Fix null pointer error in data processing
-- Update API response structure
-- Remove deprecated feature flag
-
-Return only the summary without any additional text or formatting.`;
-}
-
 export function buildFolderPrompt(
 	folder: string,
 	files: Array<{ path: string; diff: string }>,
@@ -124,37 +108,6 @@ Examples:
 Return only the summary without any additional text or formatting.`;
 }
 
-export function buildChunkPrompt(files: DiffEntry[]): string {
-	const changesText = files
-		.map(({ path, diff }) => `File: ${path}\n${diff}`)
-		.join("\n\n");
-
-	return `Analyze file changes presented in unified diff format and provide a detailed explanation.
-
-Input format:
-- Each file section starts with: File: <path>
-- Followed by either the word "deleted" (for removed files) or a unified diff patch
-- Diff line prefixes:
-  + = added line
-  - = removed line
-  (space) = context line (unchanged)
-  @@, +++, --- = metadata headers
-- Binary files may show "Binary files differ"
-
-<changes>
-${changesText}
-</changes>
-
-Provide a detailed explanation of the changes. For each significant change, describe:
-- What changed and why it matters
-- The functional impact or purpose
-- Group related changes together
-
-Use bullet points (starting with "- ", capitalized, no trailing period) for clarity. Be thorough but concise.
-
-Return only the explanation without any additional text or formatting.`;
-}
-
 export function buildSynthesisPrompt(
 	summaries: Array<{ folder?: string; path?: string; summary: string }>,
 	branch?: string,
@@ -174,7 +127,7 @@ export function buildSynthesisPrompt(
 
 ${summariesText}
 
-Format (use proper newlines):
+Format:
 Subject line here
 
 - First bullet point here
@@ -184,6 +137,7 @@ Subject line here
 Requirements:
 - Subject line: 50-72 chars, imperative mood, capitalize, no period
 - Blank line after subject if bullets present
+- IMPORTANT: Each bullet MUST be on its own line (use newline character after each bullet)
 - Each bullet: "- " + description (capitalize, no period)
 - Use imperative mood ("Add" not "Added")
 - Focus on WHAT changed, not implementation details
@@ -197,43 +151,4 @@ Return only the commit message.`;
 		.replace(/\{\{author\}\}/g, author || "");
 }
 
-export function buildFinalPrompt(
-	summaries: string[],
-	branch: string,
-	author: string,
-	override?: string,
-): string {
-	const combinedSummaries = summaries
-		.map((s, i) => `Chunk ${i + 1}:\n${s}`)
-		.join("\n\n");
 
-	const basePrompt =
-		override ||
-		`Generate a Git commit message based on detailed explanations of file changes.
-
-Below are explanations from different parts of the changeset:
-
-<summaries>
-${combinedSummaries}
-</summaries>
-
-Your task is to create a cohesive commit message that captures all the changes.
-
-Output format:
-- Subject line (one line, 50-72 characters, imperative mood)
-- Optionally, a blank line followed by bullet points for significant changes
-- Each bullet starts with "- ", capitalized, no trailing period
-
-Guidelines:
-- Use the imperative mood (e.g., "Add feature" not "Added feature")
-- Start with a capital letter
-- Focus on what the change accomplishes
-- Group related changes logically
-- Never sign the commit or state it was generated with an LLM
-
-Return only the commit message without any additional text, explanations, or formatting.`;
-
-	return basePrompt
-		.replace(/\{\{branch\}\}/g, branch)
-		.replace(/\{\{author\}\}/g, author);
-}

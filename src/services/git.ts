@@ -89,16 +89,26 @@ export function getStagedDiff(): StagedDiffs {
 		try {
 			const filePath = change.uri.fsPath;
 			const rel = toPosixRelative(cwd, filePath);
-			const diff = execFileSync(
-				"git",
-				["diff", "--no-color", "--no-ext-diff", "--", filePath],
-				{ cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }
-			);
+			
+			const isDeleted = change.status === 6;
+			
+			if (isDeleted) {
+				diffs[rel] = {
+					diff: "deleted",
+					summary: undefined,
+				};
+			} else {
+				const diff = execFileSync(
+					"git",
+					["diff", "--no-color", "--no-ext-diff", "--", filePath],
+					{ cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }
+				);
 
-			diffs[rel] = {
-				diff,
-				summary: undefined,
-			};
+				diffs[rel] = {
+					diff,
+					summary: undefined,
+				};
+			}
 		} catch (error) {
 			console.error(`Error getting diff for ${change.uri.fsPath}:`, error);
 		}

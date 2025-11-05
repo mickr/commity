@@ -29,7 +29,8 @@ export async function callLLM(
 	prompt: string,
 	model: string,
 	retries = 3,
-	temperature = 0.2,
+	temperature = 0.0,
+	maxTokens?: number,
 ): Promise<string> {
 	const client = new OpenAI({
 		apiKey,
@@ -42,6 +43,7 @@ export async function callLLM(
 			model,
 			messages: [{ role: "user", content: prompt }],
 			temperature,
+			max_tokens: maxTokens,
 		});
 
 		return completion.choices[0].message.content || "";
@@ -79,6 +81,8 @@ export async function generateFinalMessage(
 export async function* streamFinalMessage(
 	apiKey: string,
 	prompt: string,
+	maxTokens?: number,
+	model = "accounts/fireworks/models/gpt-oss-120b",
 ): AsyncGenerator<string> {
 	const client = new OpenAI({
 		apiKey,
@@ -87,10 +91,11 @@ export async function* streamFinalMessage(
 
 	try {
 		const stream = await client.chat.completions.create({
-			model: "accounts/fireworks/models/gpt-oss-120b",
+			model,
 			messages: [{ role: "user", content: prompt }],
 			temperature: 0.0,
 			stream: true,
+			max_tokens: maxTokens,
 		});
 
 		for await (const chunk of stream) {
