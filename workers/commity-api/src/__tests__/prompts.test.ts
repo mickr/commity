@@ -503,7 +503,7 @@ describe("buildSynthesisPrompt", () => {
 		const summaries = [{ folder: "src", summary: "Changes" }];
 		const result = buildSynthesisPrompt(summaries);
 
-		expect(result).toContain("Subject line (50-72 chars");
+		expect(result).toContain("Subject line: 50-72 chars");
 		expect(result).toContain("imperative mood");
 		expect(result).toContain("capitalize");
 	});
@@ -513,16 +513,15 @@ describe("buildSynthesisPrompt", () => {
 		const result = buildSynthesisPrompt(summaries);
 
 		expect(result).toContain("Focus on WHAT changed");
-		expect(result).toContain("Never mention file paths");
-		expect(result).toContain("Never sign or mention AI generation");
+		expect(result).toContain("Keep bullets concise");
 	});
 
 	it("includes formatting instructions", () => {
 		const summaries = [{ folder: "src", summary: "Changes" }];
 		const result = buildSynthesisPrompt(summaries);
 
-		expect(result).toContain("CRITICAL: You MUST use actual newline characters");
-		expect(result).toContain("Each bullet MUST start on a new line");
+		expect(result).toContain("Format (use proper newlines)");
+		expect(result).toContain("Subject line:");
 	});
 
 	it("handles empty summaries array", () => {
@@ -605,12 +604,13 @@ Generate conventional commit.`;
 		expect(result).not.toContain("{{changes}}");
 	});
 
-	it("includes streaming instructions when override is provided", () => {
+	it("uses custom override when provided", () => {
 		const summaries = [{ folder: "src", summary: "Changes" }];
-		const override = "Custom prompt";
+		const override = "Custom prompt with {{changes}} placeholder";
 		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override);
 
-		expect(result).toContain("IMPORTANT FOR STREAMING");
-		expect(result).toContain("actual newline characters");
+		expect(result).toContain("Custom prompt");
+		expect(result).toContain("src: Changes");
+		expect(result).not.toContain("{{changes}}");
 	});
 });

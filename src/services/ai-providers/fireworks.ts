@@ -135,8 +135,8 @@ export class FireworksProvider implements LLMProvider {
 
 				for (const line of lines) {
 					if (line.startsWith("data: ")) {
-						const data = line.slice(6);
-						if (data.trim()) {
+						const data = line.slice(6).replace(/\\n/g, "\n");
+						if (data) {
 							yield data;
 						}
 					} else if (line.startsWith("event: error")) {

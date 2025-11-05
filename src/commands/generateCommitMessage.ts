@@ -59,15 +59,7 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 
 				for await (const chunk of client.streamCommitMessage(request, abortController.signal)) {
 					accumulatedMessage += chunk;
-					
-					let formatted = accumulatedMessage;
-					if (formatted.includes("- ")) {
-						formatted = formatted
-							.replace(/^(.+?)- /, "$1\n\n- ")
-							.replace(/- ([^-]+?)- /g, "- $1\n- ");
-					}
-					
-					repository.inputBox.value = formatted;
+					repository.inputBox.value = accumulatedMessage;
 				}
 			}
 		);

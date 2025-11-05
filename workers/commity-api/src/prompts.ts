@@ -168,38 +168,28 @@ export function buildSynthesisPrompt(
 		})
 		.join("\n");
 
-	const streamingInstructions = `
-IMPORTANT FOR STREAMING: When generating multi-line output, you MUST use actual newline characters.
-- Each bullet point or separate line MUST be on its own line with a newline character
-- Add a blank line between the subject and bullet points if present
-- This ensures proper display during streaming output
-`;
-
 	const basePrompt = override
-		? `${streamingInstructions}\n${override}`
+		? override
 		: `Generate a Git commit message from these changes:
 
 ${summariesText}
 
-Create a cohesive, readable commit message. Identify the main purpose of the changes and group related items logically.
+Format (use proper newlines):
+Subject line here
 
-CRITICAL: You MUST use actual newline characters (\\n) to separate lines. Each bullet point MUST be on its own line.
+- First bullet point here
+- Second bullet point here
+- Third bullet point here
 
-Format:
-- Subject line (50-72 chars, imperative mood, capitalize, no period)
-- If multiple significant changes, add a blank line then flat bullet points
-- Each bullet MUST start on a new line: "- " + description (capitalize, no period)
-- Keep bullets concise - combine related changes into single bullets
-- No nested bullets or sub-sections
-
-Guidelines:
+Requirements:
+- Subject line: 50-72 chars, imperative mood, capitalize, no period
+- Blank line after subject if bullets present
+- Each bullet: "- " + description (capitalize, no period)
 - Use imperative mood ("Add" not "Added")
 - Focus on WHAT changed, not implementation details
-- Combine related changes into logical groups
-- Never mention file paths or technical internals
-- Never sign or mention AI generation
+- Keep bullets concise and combine related changes
 
-Return only the commit message with proper newlines.`;
+Return only the commit message.`;
 
 	return basePrompt
 		.replace(/\{\{changes\}\}/g, summariesText)

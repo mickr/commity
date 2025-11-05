@@ -49,7 +49,7 @@ export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 				const summary = await callLLM(
 					c.env.FIREWORKS_API_KEY,
 					folderPrompt,
-					"accounts/fireworks/models/llama-v3p1-8b-instruct",
+					"accounts/fireworks/models/gpt-oss-20b",
 					3,
 					0.2,
 				);
@@ -57,7 +57,11 @@ export async function commitMessageHandler(c: Context<{ Bindings: Bindings }>) {
 			}),
 		);
 
-		const synthesisPrompt = buildSynthesisPrompt(folderSummaries, body.branch, body.author);
+		const synthesisPrompt = buildSynthesisPrompt(
+			folderSummaries,
+			body.branch,
+			body.author,
+		);
 		const finalMessage = await generateFinalMessage(
 			c.env.FIREWORKS_API_KEY,
 			synthesisPrompt,

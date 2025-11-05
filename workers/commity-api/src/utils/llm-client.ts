@@ -89,7 +89,7 @@ export async function* streamFinalMessage(
 		const stream = await client.chat.completions.create({
 			model: "accounts/fireworks/models/gpt-oss-120b",
 			messages: [{ role: "user", content: prompt }],
-			temperature: 0.2,
+			temperature: 0.0,
 			stream: true,
 		});
 

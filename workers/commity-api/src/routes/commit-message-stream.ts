@@ -52,7 +52,7 @@ export async function commitMessageStreamHandler(
 				const summary = await callLLM(
 					c.env.FIREWORKS_API_KEY,
 					folderPrompt,
-					"accounts/fireworks/models/llama-v3p1-8b-instruct",
+					"accounts/fireworks/models/gpt-oss-120b",
 					3,
 					0.2,
 				);
@@ -73,10 +73,11 @@ export async function commitMessageStreamHandler(
 					synthesisPrompt,
 				)) {
 					await stream.writeSSE({
-						data: chunk,
+						data: chunk.replace(/\n/g, "\\n"),
 					});
 				}
 			} catch (error) {
+				console.error("Error generating commit message:", error);
 				await stream.writeSSE({
 					event: "error",
 					data: error instanceof Error ? error.message : "Unknown error",
