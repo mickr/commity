@@ -1,3 +1,10 @@
+# [0.15.0](https://github.com/mickr/commity/compare/v0.14.0...v0.15.0) (2025-11-06)
+
+
+### Features
+
+* **config:** add support for dynamic variable replacement in commit message templates ([deb20c1](https://github.com/mickr/commity/commit/deb20c1b2224c8f119774977aa519c671dbefc74))
+
 # [0.14.0](https://github.com/mickr/commity/compare/v0.13.0...v0.14.0) (2025-11-06)
 
 
