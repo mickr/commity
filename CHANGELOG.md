@@ -1,3 +1,10 @@
+# [0.14.0](https://github.com/mickr/commity/compare/v0.13.0...v0.14.0) (2025-11-06)
+
+
+### Features
+
+* **git:** include staged changes in file path filtering ([eef8218](https://github.com/mickr/commity/commit/eef82183b900fc3e18f811a7a2d072970da8931f))
+
 # [0.13.0](https://github.com/mickr/commity/compare/v0.12.0...v0.13.0) (2025-11-05)
 
 
