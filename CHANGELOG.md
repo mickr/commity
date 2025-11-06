@@ -1,3 +1,10 @@
+## [0.15.2](https://github.com/mickr/commity/compare/v0.15.1...v0.15.2) (2025-11-06)
+
+
+### Bug Fixes
+
+* **release:** add OpenVSIX publishing step ([166b9fd](https://github.com/mickr/commity/commit/166b9fdba2ab4d73395fdfc029b4d34abc204839))
+
 ## [0.15.1](https://github.com/mickr/commity/compare/v0.15.0...v0.15.1) (2025-11-06)
 
 
