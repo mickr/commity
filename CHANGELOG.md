@@ -1,3 +1,10 @@
+## [0.15.1](https://github.com/mickr/commity/compare/v0.15.0...v0.15.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* **ai:** improve error handling and secure environment configuration ([eb46165](https://github.com/mickr/commity/commit/eb46165e63c25ac01cb0e5f6142995a4a7644dbc))
+
 # [0.15.0](https://github.com/mickr/commity/compare/v0.14.0...v0.15.0) (2025-11-06)
 
 
