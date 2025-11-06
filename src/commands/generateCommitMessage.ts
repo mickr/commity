@@ -8,13 +8,13 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
 	const git = gitExtension?.getAPI(1);
 
-	const repository = git.repositories[0];
-	const client = new FireworksProvider(context.extensionMode === vscode.ExtensionMode.Development);
-
-	if (!repository) {
+	if (!git || git.repositories.length === 0) {
 		vscode.window.showWarningMessage("No Git repository found");
 		return;
 	}
+
+	const repository = git.repositories[0];
+	const client = new FireworksProvider(context.extensionMode === vscode.ExtensionMode.Development);
 
 	const stagedDiffs = getStagedDiff();
 	const branch = getCurrentBranch();
@@ -69,6 +69,13 @@ export const generateCommitMessage = async (context: vscode.ExtensionContext) =>
 		if (error instanceof Error) {
 			if (error.name === "AbortError") {
 				vscode.window.setStatusBarMessage("Commity: Generation cancelled", 5000);
+				return;
+			}
+
+			if (/(ECONNREFUSED|ENOTFOUND|fetch failed|network)/i.test(error.message)) {
+				vscode.window.showErrorMessage(
+					"Commity: Unable to reach Commity service. Check your internet connection or base URL."
+				);
 				return;
 			}
 

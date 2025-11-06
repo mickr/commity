@@ -22,7 +22,7 @@
 		"scm"
 	],
 	"engines": {
-		"vscode": "^1.80.0"
+		"vscode": "^1.84.0"
 	},
 	"categories": [
 		"SCM Providers"

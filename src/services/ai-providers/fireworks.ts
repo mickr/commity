@@ -1,7 +1,9 @@
 import type { CommitMessageRequest, LLMProvider } from "../../types/ai";
 
 export const resolveFireworksBaseUrl = (isDevelopment: boolean): string => {
-	return isDevelopment ? "http://localhost:8787" : "https://fireworks.commity.ai";
+	return isDevelopment
+		? "http://localhost:8787"
+		: "https://fireworks.commity.ai";
 };
 
 type FireworksSuccessResponse = {
@@ -12,7 +14,9 @@ type FireworksErrorResponse = {
 	error: string;
 };
 
-const isFireworksSuccessResponse = (value: unknown): value is FireworksSuccessResponse => {
+const isFireworksSuccessResponse = (
+	value: unknown,
+): value is FireworksSuccessResponse => {
 	return (
 		typeof value === "object" &&
 		value !== null &&
@@ -45,9 +49,11 @@ export class FireworksProvider implements LLMProvider {
 		});
 
 		if (!response.ok) {
-			const error = (await response.json().catch(() => null)) as FireworksErrorResponse | null;
+			const error = (await response
+				.json()
+				.catch(() => null)) as FireworksErrorResponse | null;
 			throw new Error(
-				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`
+				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
 			);
 		}
 
@@ -62,7 +68,7 @@ export class FireworksProvider implements LLMProvider {
 
 	async generateCommitMessage(
 		request: CommitMessageRequest,
-		signal?: AbortSignal
+		signal?: AbortSignal,
 	): Promise<string> {
 		const endpoint = new URL("/api/commit-message", this.baseUrl).toString();
 
@@ -76,9 +82,11 @@ export class FireworksProvider implements LLMProvider {
 		});
 
 		if (!response.ok) {
-			const error = (await response.json().catch(() => null)) as FireworksErrorResponse | null;
+			const error = (await response
+				.json()
+				.catch(() => null)) as FireworksErrorResponse | null;
 			throw new Error(
-				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`
+				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
 			);
 		}
 
@@ -93,9 +101,12 @@ export class FireworksProvider implements LLMProvider {
 
 	async *streamCommitMessage(
 		request: CommitMessageRequest,
-		signal?: AbortSignal
+		signal?: AbortSignal,
 	): AsyncGenerator<string> {
-		const endpoint = new URL("/api/commit-message/stream", this.baseUrl).toString();
+		const endpoint = new URL(
+			"/api/commit-message/stream",
+			this.baseUrl,
+		).toString();
 
 		const response = await fetch(endpoint, {
 			method: "POST",
@@ -107,9 +118,11 @@ export class FireworksProvider implements LLMProvider {
 		});
 
 		if (!response.ok) {
-			const error = (await response.json().catch(() => null)) as FireworksErrorResponse | null;
+			const error = (await response
+				.json()
+				.catch(() => null)) as FireworksErrorResponse | null;
 			throw new Error(
-				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`
+				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
 			);
 		}
 
@@ -148,6 +161,11 @@ export class FireworksProvider implements LLMProvider {
 				}
 			}
 		} finally {
+			try {
+				await reader.cancel();
+			} catch {
+				// Ignore cancellation errors
+			}
 			reader.releaseLock();
 		}
 	}

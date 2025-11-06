@@ -4,3 +4,13 @@ node_modules
 *.vsix
 .DS_Store
 .dev.vars
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+.secret
+secrets/
+temp/
+tmp/
