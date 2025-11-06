@@ -59,9 +59,11 @@ export function getStagedChangesPaths(): Change[] {
 	}
 
 	const changes: Change[] = repository.state.workingTreeChanges;
+	const stagedChanges: Change[] = repository.state.indexChanges;
+	const allChanges = [...changes, ...stagedChanges];
 	const cwd = repository.rootUri.fsPath;
 
-	return changes.filter((change) => {
+	return allChanges.filter((change) => {
 		const rel = toPosixRelative(cwd, change.uri.fsPath);
 		return !shouldIgnore(rel);
 	});
@@ -89,9 +91,9 @@ export function getStagedDiff(): StagedDiffs {
 		try {
 			const filePath = change.uri.fsPath;
 			const rel = toPosixRelative(cwd, filePath);
-			
+
 			const isDeleted = change.status === 6;
-			
+
 			if (isDeleted) {
 				diffs[rel] = {
 					diff: "deleted",
@@ -101,7 +103,7 @@ export function getStagedDiff(): StagedDiffs {
 				const diff = execFileSync(
 					"git",
 					["diff", "--no-color", "--no-ext-diff", "--", filePath],
-					{ cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }
+					{ cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
 				);
 
 				diffs[rel] = {

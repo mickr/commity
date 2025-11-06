@@ -1,8 +1,12 @@
-jest.mock("vscode", () => ({
-	extensions: {
-		getExtension: jest.fn(),
-	},
-}), { virtual: true });
+jest.mock(
+	"vscode",
+	() => ({
+		extensions: {
+			getExtension: jest.fn(),
+		},
+	}),
+	{ virtual: true },
+);
 
 import * as vscode from "vscode";
 import { getStagedChangesPaths } from "../git";
@@ -45,7 +49,11 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
+			state: {
+				indexChanges: [],
+				workingTreeChanges: changes,
+				HEAD: { name: "main" },
+			},
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -71,7 +79,11 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
+			state: {
+				indexChanges: [],
+				workingTreeChanges: changes,
+				HEAD: { name: "main" },
+			},
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -102,7 +114,11 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
+			state: {
+				indexChanges: [],
+				workingTreeChanges: changes,
+				HEAD: { name: "main" },
+			},
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -129,7 +145,11 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
+			state: {
+				indexChanges: [],
+				workingTreeChanges: changes,
+				HEAD: { name: "main" },
+			},
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -156,7 +176,11 @@ describe("getStagedChangesPaths", () => {
 		];
 
 		const mockRepository: Repository = {
-			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
+			state: {
+				indexChanges: [],
+				workingTreeChanges: changes,
+				HEAD: { name: "main" },
+			},
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -181,8 +205,17 @@ describe("getStagedChangesPaths", () => {
 			{ uri: { fsPath: "/project/README.md" } } as Change,
 		];
 
+		const stagedChanges = [
+			{ uri: { fsPath: "/project/apptest.js" } } as Change,
+			{ uri: { fsPath: "/project/styles/vendor.css" } } as Change,
+		];
+
 		const mockRepository: Repository = {
-			state: { indexChanges: [], workingTreeChanges: changes, HEAD: { name: "main" } },
+			state: {
+				indexChanges: stagedChanges,
+				workingTreeChanges: changes,
+				HEAD: { name: "main" },
+			},
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
@@ -196,6 +229,6 @@ describe("getStagedChangesPaths", () => {
 
 		const result = getStagedChangesPaths();
 
-		expect(result).toHaveLength(3);
+		expect(result).toHaveLength(5);
 	});
 });
