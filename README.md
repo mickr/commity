@@ -78,15 +78,28 @@ commitMessagePrompt: |
 
 Use these variables in your prompt to inject context:
 
+**Basic Variables:**
 - **`{{changes}}`** - Full diff of staged changes (file paths and diffs)
 - **`{{branch}}`** - Current Git branch name
 - **`{{author}}`** - Current Git author (name and email)
+
+**Statistics Variables:**
+- **`{{fileCount}}`** - Number of files changed
+- **`{{linesAdded}}`** - Total lines added (+)
+- **`{{linesRemoved}}`** - Total lines removed (-)
+- **`{{fileTypes}}`** - Comma-separated list of file extensions (e.g., ".ts, .js, .md")
+- **`{{changedFolders}}`** - Comma-separated list of modified directories
+- **`{{files}}`** - Comma-separated list of changed file paths
 
 Example usage:
 
 ```yaml
 commitMessagePrompt: |
   You are generating a commit for {{author}} on branch {{branch}}.
+  
+  Scope: {{fileCount}} files changed ({{fileTypes}})
+  Stats: +{{linesAdded}}/-{{linesRemoved}}
+  Areas: {{changedFolders}}
 
   Analyze these changes and create a concise commit message:
   {{changes}}

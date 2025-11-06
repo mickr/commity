@@ -50,47 +50,75 @@ Update dependencies to latest versions
 Return only the commit message without any additional text, explanations, or formatting.
 `;
 
-interface DiffEntry {
-	path: string;
-	diff: string;
+export interface DiffEntry {
+    path: string;
+    diff: string;
+}
+
+export interface CommitStats {
+    fileCount?: number;
+    linesAdded?: number;
+    linesRemoved?: number;
+    fileTypes?: string;
+    changedFolders?: string;
+    files?: string;
+}
+
+function replaceVariables(
+    template: string,
+    vars: Record<string, string>,
+): string {
+    return Object.entries(vars).reduce(
+        (result, [key, value]) =>
+            result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value),
+        template,
+    );
 }
 
 export function buildPrompt(
-	diffs: DiffEntry[],
-	branch: string,
-	author: string,
-	override?: string,
+    diffs: DiffEntry[],
+    branch: string,
+    author: string,
+    override?: string,
+    stats?: CommitStats,
 ): string {
-	const changesText = diffs
-		.map(({ path, diff }) => `File: ${path}\n${diff}`)
-		.join("\n\n");
+    const changesText = diffs
+        .map(({ path, diff }) => `File: ${path}\n${diff}`)
+        .join("\n\n");
 
-	const streamingFormatting = `
+    const streamingFormatting = `
 IMPORTANT FOR STREAMING: When generating multi-line output, you MUST use actual newline characters.
 - Each bullet point or separate line MUST be on its own line with a newline character
 - Add a blank line between the subject and bullet points if present
 - This ensures proper display during streaming output
 `;
 
-	const systemPrompt = override
-		? `${defaultGeneralPrompt}\n\n${override}\n\n${streamingFormatting}`
-		: defaultCommitMessagePrompt;
+    const systemPrompt = override
+        ? `${defaultGeneralPrompt}\n\n${override}\n\n${streamingFormatting}`
+        : defaultCommitMessagePrompt;
 
-	return systemPrompt
-		.replace(/\{\{changes\}\}/g, changesText)
-		.replace(/\{\{branch\}\}/g, branch)
-		.replace(/\{\{author\}\}/g, author);
+    return replaceVariables(systemPrompt, {
+        changes: changesText,
+        branch: branch,
+        author: author,
+        fileCount: stats?.fileCount?.toString() || "",
+        linesAdded: stats?.linesAdded?.toString() || "",
+        linesRemoved: stats?.linesRemoved?.toString() || "",
+        fileTypes: stats?.fileTypes || "",
+        changedFolders: stats?.changedFolders || "",
+        files: stats?.files || "",
+    });
 }
 
 export function buildFolderPrompt(
-	folder: string,
-	files: Array<{ path: string; diff: string }>,
+    folder: string,
+    files: Array<{ path: string; diff: string }>,
 ): string {
-	const changesText = files
-		.map(({ path, diff }) => `File: ${path}\n${diff}`)
-		.join("\n\n");
+    const changesText = files
+        .map(({ path, diff }) => `File: ${path}\n${diff}`)
+        .join("\n\n");
 
-	return `Analyze changes in this folder and provide a brief summary.
+    return `Analyze changes in this folder and provide a brief summary.
 
 Folder: ${folder}
 Number of files: ${files.length}
@@ -109,21 +137,22 @@ Return only the summary without any additional text or formatting.`;
 }
 
 export function buildSynthesisPrompt(
-	summaries: Array<{ folder?: string; path?: string; summary: string }>,
-	branch?: string,
-	author?: string,
-	override?: string,
+    summaries: Array<{ folder?: string; path?: string; summary: string }>,
+    branch?: string,
+    author?: string,
+    override?: string,
+    stats?: CommitStats,
 ): string {
-	const summariesText = summaries
-		.map(({ folder, path, summary }) => {
-			const location = folder || path || "unknown";
-			return `${location}: ${summary}`;
-		})
-		.join("\n");
+    const summariesText = summaries
+        .map(({ folder, path, summary }) => {
+            const location = folder || path || "unknown";
+            return `${location}: ${summary}`;
+        })
+        .join("\n");
 
-	const basePrompt = override
-		? override
-		: `Generate a Git commit message from these changes:
+    const basePrompt = override
+        ? override
+        : `Generate a Git commit message from these changes:
 
 ${summariesText}
 
@@ -145,10 +174,17 @@ Requirements:
 
 Return only the commit message.`;
 
-	return basePrompt
-		.replace(/\{\{changes\}\}/g, summariesText)
-		.replace(/\{\{branch\}\}/g, branch || "")
-		.replace(/\{\{author\}\}/g, author || "");
+    return replaceVariables(basePrompt, {
+        changes: summariesText,
+        branch: branch || "",
+        author: author || "",
+        fileCount: stats?.fileCount?.toString() || "",
+        linesAdded: stats?.linesAdded?.toString() || "",
+        linesRemoved: stats?.linesRemoved?.toString() || "",
+        fileTypes: stats?.fileTypes || "",
+        changedFolders: stats?.changedFolders || "",
+        files: stats?.files || "",
+    });
 }
 
 

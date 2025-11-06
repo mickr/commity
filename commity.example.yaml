@@ -39,7 +39,12 @@ commitMessagePrompt: |
   
   Context:
   Author: {{author}}
-  Changes: {{changes}}
   Branch: {{branch}}
+  Files changed: {{fileCount}} ({{fileTypes}})
+  Diff stats: +{{linesAdded}}/-{{linesRemoved}}
+  Modified areas: {{changedFolders}}
+  
+  Changes:
+  {{changes}}
   
   Return only the commit message without any additional text, explanations, or formatting.

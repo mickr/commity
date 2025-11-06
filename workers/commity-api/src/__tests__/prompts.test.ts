@@ -127,6 +127,82 @@ Generate a conventional commit message.`;
 		expect(result).toContain("unified diff format"); // from defaultGeneralPrompt
 	});
 
+	it("replaces {{fileCount}} when stats provided", () => {
+		const override = "Files changed: {{fileCount}}";
+		const result = buildPrompt(mockDiffs, "main", "test@example.com", override, { fileCount: 5 });
+
+		expect(result).toContain("Files changed: 5");
+		expect(result).not.toContain("{{fileCount}}");
+	});
+
+	it("replaces {{linesAdded}} and {{linesRemoved}} when stats provided", () => {
+		const override = "Stats: +{{linesAdded}}/-{{linesRemoved}}";
+		const result = buildPrompt(mockDiffs, "main", "test@example.com", override, {
+			linesAdded: 42,
+			linesRemoved: 15
+		});
+
+		expect(result).toContain("Stats: +42/-15");
+		expect(result).not.toContain("{{linesAdded}}");
+		expect(result).not.toContain("{{linesRemoved}}");
+	});
+
+	it("replaces {{fileTypes}} when stats provided", () => {
+		const override = "Types: {{fileTypes}}";
+		const result = buildPrompt(mockDiffs, "main", "test@example.com", override, {
+			fileTypes: ".ts, .js, .md"
+		});
+
+		expect(result).toContain("Types: .ts, .js, .md");
+		expect(result).not.toContain("{{fileTypes}}");
+	});
+
+	it("replaces {{changedFolders}} when stats provided", () => {
+		const override = "Folders: {{changedFolders}}";
+		const result = buildPrompt(mockDiffs, "main", "test@example.com", override, {
+			changedFolders: "src/auth, src/api"
+		});
+
+		expect(result).toContain("Folders: src/auth, src/api");
+		expect(result).not.toContain("{{changedFolders}}");
+	});
+
+	it("replaces {{files}} when stats provided", () => {
+		const override = "Modified: {{files}}";
+		const result = buildPrompt(mockDiffs, "main", "test@example.com", override, {
+			files: "auth.ts, api.ts, utils.ts"
+		});
+
+		expect(result).toContain("Modified: auth.ts, api.ts, utils.ts");
+		expect(result).not.toContain("{{files}}");
+	});
+
+	it("replaces all stat variables together", () => {
+		const override = `Files: {{fileCount}} ({{fileTypes}})
+Folders: {{changedFolders}}
+Stats: +{{linesAdded}}/-{{linesRemoved}}`;
+		const result = buildPrompt(mockDiffs, "main", "test@example.com", override, {
+			fileCount: 8,
+			fileTypes: ".ts, .md",
+			changedFolders: "src, docs",
+			linesAdded: 120,
+			linesRemoved: 45
+		});
+
+		expect(result).toContain("Files: 8 (.ts, .md)");
+		expect(result).toContain("Folders: src, docs");
+		expect(result).toContain("Stats: +120/-45");
+	});
+
+	it("handles missing stats gracefully with empty strings", () => {
+		const override = "Count: {{fileCount}}, Types: {{fileTypes}}";
+		const result = buildPrompt(mockDiffs, "main", "test@example.com", override);
+
+		expect(result).toContain("Count: , Types: ");
+		expect(result).not.toContain("{{fileCount}}");
+		expect(result).not.toContain("{{fileTypes}}");
+	});
+
 	it("handles empty diffs array", () => {
 		const result = buildPrompt([], "main", "test@example.com");
 
@@ -434,5 +510,67 @@ Generate conventional commit.`;
 		expect(result).toContain("Custom prompt");
 		expect(result).toContain("src: Changes");
 		expect(result).not.toContain("{{changes}}");
+	});
+
+	it("replaces {{fileCount}} in synthesis when stats provided", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "Total files: {{fileCount}}";
+		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override, { fileCount: 12 });
+
+		expect(result).toContain("Total files: 12");
+		expect(result).not.toContain("{{fileCount}}");
+	});
+
+	it("replaces {{linesAdded}} and {{linesRemoved}} in synthesis when stats provided", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "Diff stats: +{{linesAdded}}/-{{linesRemoved}}";
+		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override, {
+			linesAdded: 89,
+			linesRemoved: 23
+		});
+
+		expect(result).toContain("Diff stats: +89/-23");
+		expect(result).not.toContain("{{linesAdded}}");
+		expect(result).not.toContain("{{linesRemoved}}");
+	});
+
+	it("replaces {{fileTypes}} in synthesis when stats provided", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "File types modified: {{fileTypes}}";
+		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override, {
+			fileTypes: ".ts, .tsx, .css"
+		});
+
+		expect(result).toContain("File types modified: .ts, .tsx, .css");
+		expect(result).not.toContain("{{fileTypes}}");
+	});
+
+	it("replaces {{changedFolders}} in synthesis when stats provided", () => {
+		const summaries = [{ folder: "src", summary: "Changes" }];
+		const override = "Affected areas: {{changedFolders}}";
+		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override, {
+			changedFolders: "src/components, src/utils, docs"
+		});
+
+		expect(result).toContain("Affected areas: src/components, src/utils, docs");
+		expect(result).not.toContain("{{changedFolders}}");
+	});
+
+	it("replaces all stat variables in synthesis together", () => {
+		const summaries = [{ folder: "src", summary: "Refactor" }];
+		const override = `Scope: {{fileCount}} files ({{fileTypes}})
+Modified: {{changedFolders}}
+Changes: +{{linesAdded}}/-{{linesRemoved}}`;
+		const result = buildSynthesisPrompt(summaries, "main", "test@example.com", override, {
+			fileCount: 15,
+			fileTypes: ".ts, .json",
+			changedFolders: "src, config",
+			linesAdded: 200,
+			linesRemoved: 150
+		});
+
+		expect(result).toContain("Scope: 15 files (.ts, .json)");
+		expect(result).toContain("Modified: src, config");
+		expect(result).toContain("Changes: +200/-150");
 	});
 });
