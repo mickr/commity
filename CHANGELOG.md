@@ -1,3 +1,10 @@
+# [0.16.0](https://github.com/mickr/commity/compare/v0.15.2...v0.16.0) (2025-11-06)
+
+
+### Features
+
+* **ai:** switch to qwen3 model for commit message generation ([59a43d1](https://github.com/mickr/commity/commit/59a43d10744a9fb70790ebc8856b307245cb3eaf))
+
 ## [0.15.2](https://github.com/mickr/commity/compare/v0.15.1...v0.15.2) (2025-11-06)
 
 
