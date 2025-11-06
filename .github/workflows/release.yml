@@ -95,3 +95,8 @@ jobs:
         run: pnpm exec vsce publish --no-dependencies
         env:
           VSCE_PAT: ${{ secrets.MARKETPLACE_PAT }}
+
+      - name: Publish to OpenVSIX
+        run: npx ovsx publish --no-dependencies
+        env:
+          OVSX_PAT: ${{ secrets.OPENVSX_PAT }}
