@@ -75,14 +75,14 @@ export async function generateFinalMessage(
 	apiKey: string,
 	prompt: string,
 ): Promise<string> {
-	return callLLM(apiKey, prompt, "accounts/fireworks/models/gpt-oss-120b");
+	return callLLM(apiKey, prompt, "accounts/fireworks/models/qwen3-235b-a22b-instruct-2507");
 }
 
 export async function* streamFinalMessage(
 	apiKey: string,
 	prompt: string,
 	maxTokens?: number,
-	model = "accounts/fireworks/models/gpt-oss-120b",
+	model = "accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
 ): AsyncGenerator<string> {
 	const client = new OpenAI({
 		apiKey,

@@ -56,10 +56,10 @@ export async function commitMessageStreamHandler(
 					let lastChar = "";
 					
 					for await (const chunk of streamFinalMessage(
-						c.env.FIREWORKS_API_KEY,
-						fastPathPrompt,
-						256,
-						"accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
+					c.env.FIREWORKS_API_KEY,
+					fastPathPrompt,
+					256,
+					"accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
 					)) {
 						buffer += chunk;
 						
@@ -115,11 +115,11 @@ export async function commitMessageStreamHandler(
 			Object.entries(folderGroups).map(async ([folder, files]) => {
 				const folderPrompt = buildFolderPrompt(folder, files);
 				const summary = await callLLM(
-					c.env.FIREWORKS_API_KEY,
-					folderPrompt,
-					"accounts/fireworks/models/gpt-oss-20b",
-					3,
-					0.0,
+				c.env.FIREWORKS_API_KEY,
+				folderPrompt,
+				"accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
+				3,
+				0.0,
 				);
 				return { folder, summary };
 			}),
@@ -135,10 +135,10 @@ export async function commitMessageStreamHandler(
 		return streamSSE(c, async (stream) => {
 			try {
 				for await (const chunk of streamFinalMessage(
-					c.env.FIREWORKS_API_KEY,
-					synthesisPrompt,
-					undefined,
-					"accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
+				c.env.FIREWORKS_API_KEY,
+				synthesisPrompt,
+				undefined,
+				"accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
 				)) {
 					await stream.writeSSE({
 						data: chunk.replace(/\n/g, "\\n"),
