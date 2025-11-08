@@ -1,0 +1,98 @@
+{
+	"name": "commity-ai",
+	"displayName": "Commity.ai",
+	"description": "Lightning-fast AI commit messages. Smart, instant, and context-aware.",
+	"version": "0.16.0",
+	"publisher": "ryanlabs",
+	"author": "mickcodez",
+	"license": "SEE LICENSE IN LICENSE",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/mickr/commity.git"
+	},
+	"bugs": {
+		"url": "https://github.com/mickr/commity/issues"
+	},
+	"homepage": "https://commity.ai",
+	"keywords": [
+		"git",
+		"commit",
+		"ai",
+		"commit-message",
+		"scm"
+	],
+	"engines": {
+		"vscode": "^1.84.0"
+	},
+	"categories": [
+		"SCM Providers"
+	],
+	"activationEvents": [],
+	"main": "./out/extension.js",
+	"extensionDependencies": [
+		"vscode.git"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "commity.generateCommitMessage",
+				"title": "Generate Commity Message",
+				"icon": "$(robot)"
+			}
+		],
+		"menus": {
+			"scm/title": [
+				{
+					"command": "commity.generateCommitMessage",
+					"group": "navigation",
+					"when": "scmProvider == git"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "pnpm run package",
+		"compile": "pnpm run check-types && node esbuild.js",
+		"watch": "npm-run-all -p watch:*",
+		"watch:esbuild": "node esbuild.js --watch",
+		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+		"package": "pnpm run check-types && node esbuild.js --production",
+		"check-types": "tsc --noEmit",
+		"pretest": "pnpm run compile && pnpm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage",
+		"version:patch": "npm version patch --no-git-tag-version",
+		"version:minor": "npm version minor --no-git-tag-version",
+		"version:major": "npm version major --no-git-tag-version",
+		"build:patch": "pnpm run version:patch && pnpm run package && vsce package --no-dependencies",
+		"build:minor": "pnpm run version:minor && pnpm run package && vsce package --no-dependencies",
+		"build:major": "pnpm run version:major && pnpm run package && vsce package --no-dependencies"
+	},
+	"devDependencies": {
+		"@semantic-release/changelog": "^6.0.3",
+		"@semantic-release/exec": "^6.0.3",
+		"@semantic-release/git": "^10.0.1",
+		"@types/jest": "^30.0.0",
+		"@types/js-yaml": "^4.0.9",
+		"@types/node": "20.x",
+		"@types/vscode": "^1.80.0",
+		"@typescript-eslint/eslint-plugin": "^6.4.1",
+		"@typescript-eslint/parser": "^6.4.1",
+		"@vscode/vsce": "^3.2.1",
+		"dotenv": "^17.2.3",
+		"esbuild": "^0.25.11",
+		"eslint": "^8.47.0",
+		"jest": "^30.2.0",
+		"js-yaml": "^4.1.0",
+		"npm-run-all": "^4.1.5",
+		"openai": "^4.75.0",
+		"prettier": "^3.6.2",
+		"semantic-release": "^24.2.0",
+		"ts-jest": "^29.4.5",
+		"typescript": "^5.1.6",
+		"zod": "^3.23.8"
+	},
+	"packageManager": "pnpm@10.20.0+sha512.cf9998222162dd85864d0a8102e7892e7ba4ceadebbf5a31f9c2fce48dfce317a9c53b9f6464d1ef9042cba2e02ae02a9f7c143a2b438cd93c91840f0192b9dd"
+}

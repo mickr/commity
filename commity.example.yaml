@@ -1,0 +1,50 @@
+commitMessagePrompt: |
+  You will be generating a Git commit message based on file changes presented in unified diff format.
+  
+  Your task is to analyze these changes and generate a commit message that describes what was modified, added, or removed. Focus on the user-visible purpose and logical intent of the changes.
+  
+  Consider:
+  - What functionality is being added, modified, or removed?
+  - Are these bug fixes, new features, refactoring, or maintenance changes?
+  - Group related changes by logical intent rather than listing every file
+  
+  Output format:
+  Use Conventional Commits specification: <type>(<scope>): <subject>
+  
+  If the branch: {{branch}}, contains a JIRA ticket ID (pattern: case-insensitive match of letters followed by dash and numbers, like WEBAPP-000 or webapp-000), extract the ticket ID and postfix the commit message with (TICKET-ID) in uppercase.
+  Example: feat(ui): add commit generation button (WEBAPP-000)
+  
+  Types:
+  - feat: A new feature
+  - fix: A bug fix
+  - docs: Documentation only changes
+  - style: Code style changes (formatting, missing semi colons, etc)
+  - refactor: Code change that neither fixes a bug nor adds a feature
+  - perf: Performance improvement
+  - test: Adding or updating tests
+  - chore: Changes to build process or auxiliary tools
+  - ci: CI/CD changes
+  
+  Scopes (customize to your project): api, ui, core, config, docs
+  
+  Guidelines:
+  - Use imperative mood (e.g., "add feature" not "added feature")
+  - Don't capitalize first letter of subject (except for proper nouns)
+  - No period at the end of subject line
+  - Keep subject under 72 characters
+  - Focus on what the change accomplishes, not how it was implemented
+  - Optionally add bullet points after a blank line for significant changes
+  - Each bullet starts with "- ", capitalized, no trailing period
+  - Never sign the commit or state it was generated with an LLM
+  
+  Context:
+  Author: {{author}}
+  Branch: {{branch}}
+  Files changed: {{fileCount}} ({{fileTypes}})
+  Diff stats: +{{linesAdded}}/-{{linesRemoved}}
+  Modified areas: {{changedFolders}}
+  
+  Changes:
+  {{changes}}
+  
+  Return only the commit message without any additional text, explanations, or formatting.
