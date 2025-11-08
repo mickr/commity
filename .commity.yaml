@@ -11,7 +11,7 @@ commitMessagePrompt: |
   Output format:
   Use Conventional Commits specification: <type>(<scope>): <subject>
 
-  If the branch: {{branch}}, contains a JIRA ticket ID (pattern: case-insensitive match of letters followed by dash and numbers, like WEBAPP-000 or webapp-000), extract the ticket ID and postfix the commit message with (TICKET-ID) in uppercase.
+  If the branch name: {{branch}}, contains a JIRA ticket ID (pattern: case-insensitive match of letters followed by dash and numbers, like WEBAPP-000 or webapp-000), extract the ticket ID and postfix the commit message with (TICKET-ID) in uppercase.
   Example: feat(ui): add commit generation button (WEBAPP-000)
   
   Types:
@@ -36,6 +36,7 @@ commitMessagePrompt: |
   - Optionally add bullet points after a blank line for significant changes
   - Each bullet starts with "- ", capitalized, no trailing period
   - Never sign the commit or state it was generated with an LLM
+  - Only use the ticket ID if a ticket is associated with the branch
   
   Context:
   Author: {{author}}
