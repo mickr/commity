@@ -114,9 +114,9 @@ commitMessagePrompt: |
 The extension includes version-aware build commands:
 
 ```bash
-pnpm run build:patch  # Increments patch version (0.0.1 → 0.0.2)
-pnpm run build:minor  # Increments minor version (0.0.1 → 0.1.0)
-pnpm run build:major  # Increments major version (0.0.1 → 1.0.0)
+npm run build:patch  # Increments patch version (0.0.1 → 0.0.2)
+npm run build:minor  # Increments minor version (0.0.1 → 0.1.0)
+npm run build:major  # Increments major version (0.0.1 → 1.0.0)
 ```
 
 Each command:
@@ -128,9 +128,9 @@ Each command:
 ### Manual Version Control
 
 ```bash
-pnpm run version:patch  # Just bump version, no build
-pnpm run version:minor
-pnpm run version:major
+npm run version:patch  # Just bump version, no build
+npm run version:minor
+npm run version:major
 ```
 
 ## Requirements

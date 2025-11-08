@@ -1,13 +1,13 @@
 # Commity.ai - VS Code Extension for AI Commit Messages
 
 ## Commands
-- **Build**: `pnpm run package` (type checks + production build)
-- **Compile**: `pnpm run compile` (type checks + dev build)
-- **Type check**: `pnpm run check-types`
-- **Lint**: `pnpm run lint`
-- **Test all**: `pnpm run test`
-- **Test single file**: `pnpm run test path/to/file.test.ts`
-- **Test watch mode**: `pnpm run test:watch`
+- **Build**: `npm run package` (type checks + production build)
+- **Compile**: `npm run compile` (type checks + dev build)
+- **Type check**: `npm run check-types`
+- **Lint**: `npm run lint`
+- **Test all**: `npm run test`
+- **Test single file**: `npm run test path/to/file.test.ts`
+- **Test watch mode**: `npm run test:watch`
 
 ## Architecture
 - **Extension entry**: `src/extension.ts` - activates the VS Code extension and registers commands
