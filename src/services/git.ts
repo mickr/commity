@@ -1,7 +1,6 @@
-import * as vscode from "vscode";
 import * as path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
-import type { API, Repository, Change } from "../types/git";
+import type { Repository, Change } from "../types/git";
 
 export type FileDiff = {
 	diff: string;
@@ -37,6 +36,7 @@ function shouldIgnore(relPosix: string): boolean {
 		"Gemfile.lock",
 		"poetry.lock",
 	];
+
 	if (lockFiles.includes(base)) {
 		return true;
 	}
@@ -48,16 +48,7 @@ function shouldIgnore(relPosix: string): boolean {
 	return false;
 }
 
-export function getStagedChangesPaths(): Change[] {
-	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-	const git = gitExtension?.getAPI(1) as API | undefined;
-
-	const repository: Repository | undefined = git?.repositories[0];
-
-	if (!repository) {
-		return [];
-	}
-
+export function getStagedChangesPaths(repository: Repository): Change[] {
 	const changes: Change[] = repository.state.workingTreeChanges;
 	const stagedChanges: Change[] = repository.state.indexChanges;
 	const allChanges = [...changes, ...stagedChanges];
@@ -69,18 +60,10 @@ export function getStagedChangesPaths(): Change[] {
 	});
 }
 
-export function getStagedDiff(): StagedDiffs {
-	const changes = getStagedChangesPaths();
+export function getStagedDiff(repository: Repository): StagedDiffs {
+	const changes = getStagedChangesPaths(repository);
 
 	if (changes.length === 0) {
-		return {};
-	}
-
-	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-	const git = gitExtension?.getAPI(1) as API | undefined;
-	const repository: Repository | undefined = git?.repositories[0];
-
-	if (!repository) {
 		return {};
 	}
 
@@ -119,12 +102,7 @@ export function getStagedDiff(): StagedDiffs {
 	return diffs;
 }
 
-export function getCurrentBranch(): string {
-	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-	const git = gitExtension?.getAPI(1) as API | undefined;
-
-	const repository: Repository | undefined = git?.repositories[0];
-
+export function getCurrentBranch(repository: Repository): string {
 	if (!repository) {
 		return "";
 	}

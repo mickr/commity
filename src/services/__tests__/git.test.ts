@@ -8,35 +8,25 @@ jest.mock(
 	{ virtual: true },
 );
 
-import * as vscode from "vscode";
 import { getStagedChangesPaths } from "../git";
-import type { API, Repository, Change } from "../../types/git";
+import type { Repository, Change } from "../../types/git";
 
 describe("getStagedChangesPaths", () => {
-	const mockGetExtension = vscode.extensions.getExtension as jest.Mock;
-
 	beforeEach(() => {
 		jest.clearAllMocks();
 	});
 
-	it("returns empty array when git extension is not available", () => {
-		mockGetExtension.mockReturnValue(undefined);
+	it("returns empty array when repository has no changes", () => {
+		const mockRepository: Repository = {
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				HEAD: { name: "main" },
+			},
+			rootUri: { fsPath: "/project" },
+		} as Repository;
 
-		const result = getStagedChangesPaths();
-
-		expect(result).toEqual([]);
-	});
-
-	it("returns empty array when no repository is available", () => {
-		const mockGit: API = {
-			repositories: [],
-		} as API;
-
-		mockGetExtension.mockReturnValue({
-			exports: { getAPI: () => mockGit },
-		});
-
-		const result = getStagedChangesPaths();
+		const result = getStagedChangesPaths(mockRepository);
 
 		expect(result).toEqual([]);
 	});
@@ -57,15 +47,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
-		const mockGit: API = {
-			repositories: [mockRepository],
-		} as API;
-
-		mockGetExtension.mockReturnValue({
-			exports: { getAPI: () => mockGit },
-		});
-
-		const result = getStagedChangesPaths();
+		const result = getStagedChangesPaths(mockRepository);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].uri.fsPath).toBe("/project/src/index.ts");
@@ -87,15 +69,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
-		const mockGit: API = {
-			repositories: [mockRepository],
-		} as API;
-
-		mockGetExtension.mockReturnValue({
-			exports: { getAPI: () => mockGit },
-		});
-
-		const result = getStagedChangesPaths();
+		const result = getStagedChangesPaths(mockRepository);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].uri.fsPath).toBe("/project/src/main.php");
@@ -122,15 +96,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
-		const mockGit: API = {
-			repositories: [mockRepository],
-		} as API;
-
-		mockGetExtension.mockReturnValue({
-			exports: { getAPI: () => mockGit },
-		});
-
-		const result = getStagedChangesPaths();
+		const result = getStagedChangesPaths(mockRepository);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].uri.fsPath).toBe("/project/package.json");
@@ -153,15 +119,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
-		const mockGit: API = {
-			repositories: [mockRepository],
-		} as API;
-
-		mockGetExtension.mockReturnValue({
-			exports: { getAPI: () => mockGit },
-		});
-
-		const result = getStagedChangesPaths();
+		const result = getStagedChangesPaths(mockRepository);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].uri.fsPath).toBe("/project/src/app.js");
@@ -184,15 +142,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
-		const mockGit: API = {
-			repositories: [mockRepository],
-		} as API;
-
-		mockGetExtension.mockReturnValue({
-			exports: { getAPI: () => mockGit },
-		});
-
-		const result = getStagedChangesPaths();
+		const result = getStagedChangesPaths(mockRepository);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].uri.fsPath).toBe("/project/src/index.ts");
@@ -219,16 +169,52 @@ describe("getStagedChangesPaths", () => {
 			rootUri: { fsPath: "/project" },
 		} as Repository;
 
-		const mockGit: API = {
-			repositories: [mockRepository],
-		} as API;
-
-		mockGetExtension.mockReturnValue({
-			exports: { getAPI: () => mockGit },
-		});
-
-		const result = getStagedChangesPaths();
+		const result = getStagedChangesPaths(mockRepository);
 
 		expect(result).toHaveLength(5);
+	});
+
+	describe("Multi-Repository Support", () => {
+		it("handles different repository paths correctly", () => {
+			const repo1Changes: Change[] = [
+				{ uri: { fsPath: "/workspace/repo1/src/main.ts" } } as Change,
+				{ uri: { fsPath: "/workspace/repo1/node_modules/lib.js" } } as Change,
+			];
+
+			const mockRepo1: Repository = {
+				state: {
+					indexChanges: [],
+					workingTreeChanges: repo1Changes,
+					HEAD: { name: "main" },
+				},
+				rootUri: { fsPath: "/workspace/repo1" },
+			} as Repository;
+
+			const result = getStagedChangesPaths(mockRepo1);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].uri.fsPath).toBe("/workspace/repo1/src/main.ts");
+		});
+
+		it("correctly filters files relative to repository root", () => {
+			const repo2Changes: Change[] = [
+				{ uri: { fsPath: "/workspace/repo2/src/index.ts" } } as Change,
+				{ uri: { fsPath: "/workspace/repo2/dist/index.js" } } as Change,
+			];
+
+			const mockRepo2: Repository = {
+				state: {
+					indexChanges: [],
+					workingTreeChanges: repo2Changes,
+					HEAD: { name: "develop" },
+				},
+				rootUri: { fsPath: "/workspace/repo2" },
+			} as Repository;
+
+			const result = getStagedChangesPaths(mockRepo2);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].uri.fsPath).toBe("/workspace/repo2/src/index.ts");
+		});
 	});
 });

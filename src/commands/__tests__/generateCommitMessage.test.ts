@@ -15,6 +15,9 @@ jest.mock("vscode", () => ({
 		Development: 1,
 		Production: 2,
 	},
+	Uri: {
+		file: (path: string) => ({ fsPath: path }),
+	},
 }), { virtual: true });
 
 jest.mock("../../services/ai-providers/fireworks");
@@ -40,7 +43,12 @@ describe("generateCommitMessage", () => {
 
 	const mockRepository = {
 		inputBox: { value: "" },
+		rootUri: { fsPath: "/project" },
 	};
+
+	const mockSourceControl = {
+		rootUri: { fsPath: "/project" },
+	} as vscode.SourceControl;
 
 	const mockGitApi = {
 		repositories: [mockRepository],
@@ -80,7 +88,7 @@ describe("generateCommitMessage", () => {
 		});
 		mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-		await generateCommitMessage(mockContext);
+		await generateCommitMessage(mockSourceControl, mockContext);
 
 		expect(mockRepository.inputBox.value).toBe("Test commit message");
 		expect(vscode.window.setStatusBarMessage).toHaveBeenCalledWith(
@@ -96,7 +104,7 @@ describe("generateCommitMessage", () => {
 			},
 		});
 
-		await generateCommitMessage(mockContext);
+		await generateCommitMessage(mockSourceControl, mockContext);
 
 		expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
 			"No Git repository found"
@@ -106,7 +114,7 @@ describe("generateCommitMessage", () => {
 	it("shows status message when no staged changes", async () => {
 		mockGetStagedDiff.mockReturnValue({});
 
-		await generateCommitMessage(mockContext);
+		await generateCommitMessage(mockSourceControl, mockContext);
 
 		expect(vscode.window.setStatusBarMessage).toHaveBeenCalledWith(
 			"Commity: No staged changes",
@@ -122,7 +130,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.setStatusBarMessage).toHaveBeenCalledWith(
 				"Commity: Generation cancelled",
@@ -138,7 +146,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Rate limit exceeded. Please try again in a moment."
@@ -152,7 +160,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Rate limit exceeded. Please try again in a moment."
@@ -166,7 +174,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Service temporarily unavailable. Please try again later."
@@ -180,7 +188,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Service temporarily unavailable. Please try again later."
@@ -194,7 +202,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Invalid request. Please check your configuration."
@@ -208,7 +216,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Invalid request. Please check your configuration."
@@ -222,7 +230,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Invalid request. Please check your configuration."
@@ -236,7 +244,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Failed to generate commit message. Unexpected error occurred"
@@ -251,7 +259,7 @@ describe("generateCommitMessage", () => {
 			});
 			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 				"Commity: Failed to generate commit message. Unknown error"
@@ -271,7 +279,7 @@ describe("generateCommitMessage", () => {
 				data: "Custom prompt template",
 			});
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(mockStreamCommitMessage).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -289,7 +297,7 @@ describe("generateCommitMessage", () => {
 
 			mockReadConfiguration.mockReturnValue({ success: false, data: undefined });
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(mockStreamCommitMessage).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -315,7 +323,7 @@ describe("generateCommitMessage", () => {
 				}
 			);
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(mockOnCancellationRequested).toHaveBeenCalled();
 		});
@@ -324,7 +332,7 @@ describe("generateCommitMessage", () => {
 			const mockGenerateCommitMessage = jest.fn().mockResolvedValue("Test message");
 			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
 
-			await generateCommitMessage(mockContext);
+			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.withProgress).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -334,6 +342,145 @@ describe("generateCommitMessage", () => {
 				}),
 				expect.any(Function)
 			);
+		});
+	});
+
+	describe("Multi-Repository Support", () => {
+		it("matches repository by rootUri", async () => {
+			const mockRepo1 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/project1" },
+			};
+			const mockRepo2 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/project2" },
+			};
+
+			const mockMultiGitApi = {
+				repositories: [mockRepo1, mockRepo2],
+			};
+
+			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+				exports: {
+					getAPI: jest.fn().mockReturnValue(mockMultiGitApi),
+				},
+			});
+
+			const sourceControlForRepo2 = {
+				rootUri: { fsPath: "/project2" },
+			} as vscode.SourceControl;
+
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "Commit for repo2";
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
+
+			await generateCommitMessage(sourceControlForRepo2, mockContext);
+
+			expect(mockRepo2.inputBox.value).toBe("Commit for repo2");
+			expect(mockRepo1.inputBox.value).toBe("");
+		});
+
+		it("handles multiple repositories in workspace", async () => {
+			const mockRepo1 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/workspace/repo1" },
+			};
+			const mockRepo2 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/workspace/repo2" },
+			};
+			const mockRepo3 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/workspace/repo3" },
+			};
+
+			const mockMultiGitApi = {
+				repositories: [mockRepo1, mockRepo2, mockRepo3],
+			};
+
+			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+				exports: {
+					getAPI: jest.fn().mockReturnValue(mockMultiGitApi),
+				},
+			});
+
+			const sourceControlForRepo1 = {
+				rootUri: { fsPath: "/workspace/repo1" },
+			} as vscode.SourceControl;
+
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "First repo commit";
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
+
+			await generateCommitMessage(sourceControlForRepo1, mockContext);
+
+			expect(mockRepo1.inputBox.value).toBe("First repo commit");
+			expect(mockRepo2.inputBox.value).toBe("");
+			expect(mockRepo3.inputBox.value).toBe("");
+		});
+
+		it("shows warning when sourceControl doesn't match any repository", async () => {
+			const mockRepo1 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/project1" },
+			};
+
+			const mockGitApi = {
+				repositories: [mockRepo1],
+			};
+
+			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+				exports: {
+					getAPI: jest.fn().mockReturnValue(mockGitApi),
+				},
+			});
+
+			const nonMatchingSourceControl = {
+				rootUri: { fsPath: "/different/project" },
+			} as vscode.SourceControl;
+
+			await generateCommitMessage(nonMatchingSourceControl, mockContext);
+
+			expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+				"No Git repository found"
+			);
+		});
+
+		it("passes correct repository to git service functions", async () => {
+			const mockRepo1 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/project1" },
+			};
+			const mockRepo2 = {
+				inputBox: { value: "" },
+				rootUri: { fsPath: "/project2" },
+			};
+
+			const mockMultiGitApi = {
+				repositories: [mockRepo1, mockRepo2],
+			};
+
+			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+				exports: {
+					getAPI: jest.fn().mockReturnValue(mockMultiGitApi),
+				},
+			});
+
+			const sourceControlForRepo2 = {
+				rootUri: { fsPath: "/project2" },
+			} as vscode.SourceControl;
+
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "Test";
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
+
+			await generateCommitMessage(sourceControlForRepo2, mockContext);
+
+			expect(mockGetStagedDiff).toHaveBeenCalledWith(mockRepo2);
+			expect(mockGetCurrentBranch).toHaveBeenCalledWith(mockRepo2);
 		});
 	});
 });
