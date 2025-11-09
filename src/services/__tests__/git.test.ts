@@ -264,5 +264,50 @@ describe("getStagedChangesPaths", () => {
 			expect(result).toHaveLength(3);
 			expect(result.map(c => c.uri.fsPath)).toContain("/project/yarn.lock");
 		});
+
+		it("excludes lock files when configured with include:false", () => {
+			const changes: Change[] = [
+				{ uri: { fsPath: "/project/src/app.js" } } as Change,
+				{ uri: { fsPath: "/project/package-lock.json" } } as Change,
+				{ uri: { fsPath: "/project/README.md" } } as Change,
+			];
+
+			const mockRepository: Repository = {
+				state: {
+					indexChanges: [],
+					workingTreeChanges: changes,
+					HEAD: { name: "main" },
+				},
+				rootUri: { fsPath: "/project" },
+			} as Repository;
+
+			const result = getStagedChangesPaths(mockRepository, { include: false, useSummary: true });
+
+			expect(result).toHaveLength(2);
+			expect(result.map(c => c.uri.fsPath)).not.toContain("/project/package-lock.json");
+			expect(result.map(c => c.uri.fsPath)).toContain("/project/src/app.js");
+			expect(result.map(c => c.uri.fsPath)).toContain("/project/README.md");
+		});
+
+		it("includes lock files when configured with include:true (default)", () => {
+			const changes: Change[] = [
+				{ uri: { fsPath: "/project/src/app.js" } } as Change,
+				{ uri: { fsPath: "/project/yarn.lock" } } as Change,
+			];
+
+			const mockRepository: Repository = {
+				state: {
+					indexChanges: [],
+					workingTreeChanges: changes,
+					HEAD: { name: "main" },
+				},
+				rootUri: { fsPath: "/project" },
+			} as Repository;
+
+			const result = getStagedChangesPaths(mockRepository, { include: true, useSummary: true });
+
+			expect(result).toHaveLength(2);
+			expect(result.map(c => c.uri.fsPath)).toContain("/project/yarn.lock");
+		});
 	});
 });
