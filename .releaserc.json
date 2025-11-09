@@ -1,38 +1,38 @@
 {
-  "branches": ["main"],
-  "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
-    "@semantic-release/changelog",
-    [
-      "@semantic-release/npm",
-      {
-        "npmPublish": false
-      }
-    ],
-    [
-      "@semantic-release/exec",
-      {
-        "prepareCmd": "pnpm run package && pnpm exec vsce package --no-dependencies"
-      }
-    ],
-    [
-      "@semantic-release/github",
-      {
-        "assets": [
-          {
-            "path": "commity-*.vsix",
-            "label": "VS Code Extension"
-          }
-        ]
-      }
-    ],
-    [
-      "@semantic-release/git",
-      {
-        "assets": ["package.json", "pnpm-lock.yaml", "CHANGELOG.md"],
-        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-      }
-    ]
-  ]
+	"branches": ["main"],
+	"plugins": [
+		"@semantic-release/commit-analyzer",
+		"@semantic-release/release-notes-generator",
+		"@semantic-release/changelog",
+		[
+			"@semantic-release/npm",
+			{
+				"npmPublish": false
+			}
+		],
+		[
+			"@semantic-release/exec",
+			{
+				"prepareCmd": "npm run package && npm exec vsce package --no-dependencies"
+			}
+		],
+		[
+			"@semantic-release/github",
+			{
+				"assets": [
+					{
+						"path": "commity-*.vsix",
+						"label": "VS Code Extension"
+					}
+				]
+			}
+		],
+		[
+			"@semantic-release/git",
+			{
+				"assets": ["package.json", "npm-shrinkwrap.json", "CHANGELOG.md"],
+				"message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+			}
+		]
+	]
 }
