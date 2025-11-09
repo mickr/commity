@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/mickr/commity/compare/v1.0.0...v1.0.1) (2025-11-09)
+
+
+### Bug Fixes
+
+* **release:** detect new tag creation during semantic release ([488d49a](https://github.com/mickr/commity/commit/488d49a67f2ae75fb2e016d40589a1bbe5a507f2))
+
 # 1.0.0 (2025-11-09)
 
 
