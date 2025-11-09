@@ -27,9 +27,9 @@ export const generateCommitMessage = async (
 	const branch = getCurrentBranch(repository);
 	const author = getCurrentAuthor();
 
-	const diffs: DiffEntry[] = Object.entries(stagedDiffs).map(([path, { diff }]) => ({
+	const diffs: DiffEntry[] = Object.entries(stagedDiffs).map(([path, { diff, summary, isLockFile }]) => ({
 		path,
-		diff,
+		diff: isLockFile && summary ? summary : diff,
 	}));
 
 	if (diffs.length === 0) {

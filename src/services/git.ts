@@ -5,26 +5,32 @@ import type { Repository, Change } from "../types/git";
 export type FileDiff = {
 	diff: string;
 	summary?: string;
+	isLockFile?: boolean;
 };
 
 export type StagedDiffs = Record<string, FileDiff>;
+
+type IgnoreResult = {
+	ignore: boolean;
+	type?: "lockfile" | "generated" | "vendor";
+};
 
 function toPosixRelative(cwd: string, fsPath: string): string {
 	const rel = path.relative(cwd, fsPath);
 	return rel.replace(/\\/g, "/");
 }
 
-function shouldIgnore(relPosix: string): boolean {
+function shouldIgnore(relPosix: string): IgnoreResult {
 	const base = relPosix.split("/").pop() || "";
 
 	if (relPosix.includes("node_modules/")) {
-		return true;
+		return { ignore: true, type: "vendor" };
 	}
 	if (relPosix.includes("vendor/")) {
-		return true;
+		return { ignore: true, type: "vendor" };
 	}
 	if (relPosix.startsWith("dist/") || relPosix.startsWith("build/")) {
-		return true;
+		return { ignore: true, type: "generated" };
 	}
 
 	const lockFiles = [
@@ -38,14 +44,45 @@ function shouldIgnore(relPosix: string): boolean {
 	];
 
 	if (lockFiles.includes(base)) {
-		return true;
+		return { ignore: false, type: "lockfile" };
 	}
 
 	if (/\.(min\.js|min\.css)$/.test(base)) {
-		return true;
+		return { ignore: true, type: "generated" };
 	}
 
-	return false;
+	return { ignore: false };
+}
+
+function summarizeLockFileChanges(cwd: string, filePath: string): string {
+	try {
+		// Get the diff statistics for the lock file
+		const diffStat = execFileSync(
+			"git",
+			["diff", "--numstat", "--", filePath],
+			{ cwd, encoding: "utf8" },
+		).trim();
+
+		if (!diffStat) {
+			return "Lock file modified";
+		}
+
+		const [added, removed] = diffStat.split("\t").map(Number);
+		const fileName = path.basename(filePath);
+
+		// Simple heuristic: if many lines changed, likely dependency updates
+		if (added > 0 && removed > 0) {
+			return `Updated dependencies in ${fileName}`;
+		} else if (added > 0) {
+			return `Added dependencies in ${fileName}`;
+		} else if (removed > 0) {
+			return `Removed dependencies from ${fileName}`;
+		}
+
+		return `Modified ${fileName}`;
+	} catch (error) {
+		return `Lock file modified: ${path.basename(filePath)}`;
+	}
 }
 
 export function getStagedChangesPaths(repository: Repository): Change[] {
@@ -56,7 +93,8 @@ export function getStagedChangesPaths(repository: Repository): Change[] {
 
 	return allChanges.filter((change) => {
 		const rel = toPosixRelative(cwd, change.uri.fsPath);
-		return !shouldIgnore(rel);
+		const ignoreResult = shouldIgnore(rel);
+		return !ignoreResult.ignore;
 	});
 }
 
@@ -74,6 +112,8 @@ export function getStagedDiff(repository: Repository): StagedDiffs {
 		try {
 			const filePath = change.uri.fsPath;
 			const rel = toPosixRelative(cwd, filePath);
+			const ignoreResult = shouldIgnore(rel);
+			const isLockFile = ignoreResult.type === "lockfile";
 
 			const isDeleted = change.status === 6;
 
@@ -81,6 +121,15 @@ export function getStagedDiff(repository: Repository): StagedDiffs {
 				diffs[rel] = {
 					diff: "deleted",
 					summary: undefined,
+					isLockFile,
+				};
+			} else if (isLockFile) {
+				// For lock files, provide a summary instead of the full diff
+				const summary = summarizeLockFileChanges(cwd, filePath);
+				diffs[rel] = {
+					diff: "",
+					summary,
+					isLockFile: true,
 				};
 			} else {
 				const diff = execFileSync(
@@ -92,6 +141,7 @@ export function getStagedDiff(repository: Repository): StagedDiffs {
 				diffs[rel] = {
 					diff,
 					summary: undefined,
+					isLockFile: false,
 				};
 			}
 		} catch (error) {

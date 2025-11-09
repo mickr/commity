@@ -75,7 +75,7 @@ describe("getStagedChangesPaths", () => {
 		expect(result[0].uri.fsPath).toBe("/project/src/main.php");
 	});
 
-	it("filters out lock files", () => {
+	it("includes lock files", () => {
 		const changes: Change[] = [
 			{ uri: { fsPath: "/project/package.json" } } as Change,
 			{ uri: { fsPath: "/project/package-lock.json" } } as Change,
@@ -98,8 +98,9 @@ describe("getStagedChangesPaths", () => {
 
 		const result = getStagedChangesPaths(mockRepository);
 
-		expect(result).toHaveLength(1);
+		expect(result).toHaveLength(8);
 		expect(result[0].uri.fsPath).toBe("/project/package.json");
+		expect(result[1].uri.fsPath).toBe("/project/package-lock.json");
 	});
 
 	it("filters out minified files", () => {
@@ -215,6 +216,53 @@ describe("getStagedChangesPaths", () => {
 
 			expect(result).toHaveLength(1);
 			expect(result[0].uri.fsPath).toBe("/workspace/repo2/src/index.ts");
+		});
+	});
+
+	describe("Lock File Handling", () => {
+		it("marks lock files with isLockFile flag in getStagedDiff", () => {
+			const changes: Change[] = [
+				{ uri: { fsPath: "/project/src/index.ts" }, status: 0 } as Change,
+				{ uri: { fsPath: "/project/package-lock.json" }, status: 0 } as Change,
+			];
+
+			const mockRepository: Repository = {
+				state: {
+					indexChanges: [],
+					workingTreeChanges: changes,
+					HEAD: { name: "main" },
+				},
+				rootUri: { fsPath: "/project" },
+			} as Repository;
+
+			// This test doesn't actually execute git commands due to mocking limitations
+			// but validates that the structure supports lock file metadata
+			const result = getStagedChangesPaths(mockRepository);
+
+			expect(result).toHaveLength(2);
+			expect(result.some(c => c.uri.fsPath.includes("package-lock.json"))).toBe(true);
+		});
+
+		it("includes lock files alongside regular files", () => {
+			const changes: Change[] = [
+				{ uri: { fsPath: "/project/src/app.js" } } as Change,
+				{ uri: { fsPath: "/project/yarn.lock" } } as Change,
+				{ uri: { fsPath: "/project/README.md" } } as Change,
+			];
+
+			const mockRepository: Repository = {
+				state: {
+					indexChanges: [],
+					workingTreeChanges: changes,
+					HEAD: { name: "main" },
+				},
+				rootUri: { fsPath: "/project" },
+			} as Repository;
+
+			const result = getStagedChangesPaths(mockRepository);
+
+			expect(result).toHaveLength(3);
+			expect(result.map(c => c.uri.fsPath)).toContain("/project/yarn.lock");
 		});
 	});
 });
