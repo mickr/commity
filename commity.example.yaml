@@ -48,3 +48,14 @@ commitMessagePrompt: |
   {{changes}}
   
   Return only the commit message without any additional text, explanations, or formatting.
+
+# Lock file handling configuration
+# Controls how lock files (package-lock.json, yarn.lock, etc.) are processed
+lockFileHandling:
+  # Whether to include lock files in commit message generation (default: true)
+  include: true
+  
+  # Whether to use summaries for lock files instead of full diffs (default: true)
+  # When true, shows "Updated dependencies in package-lock.json" instead of thousands of diff lines
+  # When false, includes the full diff for lock files (not recommended - can be very large)
+  useSummary: true

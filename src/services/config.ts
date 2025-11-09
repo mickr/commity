@@ -51,7 +51,7 @@ export function readConfiguration() {
 
 		return {
 			success: true,
-			data: result.data.commitMessagePrompt,
+			data: result.data,
 		};
 	} catch (error) {
 		return {

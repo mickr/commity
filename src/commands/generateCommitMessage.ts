@@ -23,7 +23,12 @@ export const generateCommitMessage = async (
 
 	const client = new FireworksProvider(context.extensionMode === vscode.ExtensionMode.Development);
 
-	const stagedDiffs = getStagedDiff(repository);
+	const configResult = readConfiguration();
+	const config = configResult.success ? configResult.data : undefined;
+
+	const lockFileOptions = config?.lockFileHandling || { include: true, useSummary: true };
+
+	const stagedDiffs = getStagedDiff(repository, lockFileOptions);
 	const branch = getCurrentBranch(repository);
 	const author = getCurrentAuthor();
 
@@ -37,8 +42,7 @@ export const generateCommitMessage = async (
 		return;
 	}
 
-	const configResult = readConfiguration();
-	const override = configResult.success ? configResult.data : undefined;
+	const override = config?.commitMessagePrompt;
 
 	const request: CommitMessageRequest = {
 		diffs,

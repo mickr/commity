@@ -276,7 +276,10 @@ describe("generateCommitMessage", () => {
 
 			mockReadConfiguration.mockReturnValue({
 				success: true,
-				data: "Custom prompt template",
+				data: {
+					commitMessagePrompt: "Custom prompt template",
+					lockFileHandling: { include: true, useSummary: true },
+				},
 			});
 
 			await generateCommitMessage(mockSourceControl, mockContext);
@@ -479,7 +482,7 @@ describe("generateCommitMessage", () => {
 
 			await generateCommitMessage(sourceControlForRepo2, mockContext);
 
-			expect(mockGetStagedDiff).toHaveBeenCalledWith(mockRepo2);
+			expect(mockGetStagedDiff).toHaveBeenCalledWith(mockRepo2, { include: true, useSummary: true });
 			expect(mockGetCurrentBranch).toHaveBeenCalledWith(mockRepo2);
 		});
 	});

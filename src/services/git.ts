@@ -85,7 +85,15 @@ function summarizeLockFileChanges(cwd: string, filePath: string): string {
 	}
 }
 
-export function getStagedChangesPaths(repository: Repository): Change[] {
+export type LockFileOptions = {
+	include?: boolean;
+	useSummary?: boolean;
+};
+
+export function getStagedChangesPaths(
+	repository: Repository,
+	lockFileOptions: LockFileOptions = { include: true, useSummary: true },
+): Change[] {
 	const changes: Change[] = repository.state.workingTreeChanges;
 	const stagedChanges: Change[] = repository.state.indexChanges;
 	const allChanges = [...changes, ...stagedChanges];
@@ -94,12 +102,21 @@ export function getStagedChangesPaths(repository: Repository): Change[] {
 	return allChanges.filter((change) => {
 		const rel = toPosixRelative(cwd, change.uri.fsPath);
 		const ignoreResult = shouldIgnore(rel);
+		
+		// If it's a lock file and lock files should not be included, filter it out
+		if (ignoreResult.type === "lockfile" && !lockFileOptions.include) {
+			return false;
+		}
+		
 		return !ignoreResult.ignore;
 	});
 }
 
-export function getStagedDiff(repository: Repository): StagedDiffs {
-	const changes = getStagedChangesPaths(repository);
+export function getStagedDiff(
+	repository: Repository,
+	lockFileOptions: LockFileOptions = { include: true, useSummary: true },
+): StagedDiffs {
+	const changes = getStagedChangesPaths(repository, lockFileOptions);
 
 	if (changes.length === 0) {
 		return {};
@@ -123,8 +140,8 @@ export function getStagedDiff(repository: Repository): StagedDiffs {
 					summary: undefined,
 					isLockFile,
 				};
-			} else if (isLockFile) {
-				// For lock files, provide a summary instead of the full diff
+			} else if (isLockFile && lockFileOptions.useSummary) {
+				// For lock files, provide a summary instead of the full diff when configured
 				const summary = summarizeLockFileChanges(cwd, filePath);
 				diffs[rel] = {
 					diff: "",
@@ -141,7 +158,7 @@ export function getStagedDiff(repository: Repository): StagedDiffs {
 				diffs[rel] = {
 					diff,
 					summary: undefined,
-					isLockFile: false,
+					isLockFile,
 				};
 			}
 		} catch (error) {
