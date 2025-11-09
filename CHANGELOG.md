@@ -1,3 +1,15 @@
+# 1.0.0 (2025-11-09)
+
+
+### Bug Fixes
+
+* **config:** update release configuration to use npm instead of pnpm ([afba79b](https://github.com/mickr/commity/commit/afba79b6e09c98c7a519a9869a0f008141b2f90f))
+
+
+### Features
+
+* **git:** support multi-repository workflows by matching source control context ([e821a39](https://github.com/mickr/commity/commit/e821a3930a42250df36a5c8e1f05160184b38eb9))
+
 # [0.16.0](https://github.com/mickr/commity/compare/v0.15.2...v0.16.0) (2025-11-06)
 
 
