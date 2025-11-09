@@ -63,7 +63,16 @@ jobs:
         id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+        run: |
+          git fetch --tags
+          LATEST_TAG_BEFORE=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          npx semantic-release
+          LATEST_TAG_AFTER=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ "$LATEST_TAG_BEFORE" != "$LATEST_TAG_AFTER" ]; then
+            echo "new_release_published=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_release_published=false" >> $GITHUB_OUTPUT
+          fi
 
   publish:
     runs-on: ubuntu-latest
