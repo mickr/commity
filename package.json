@@ -38,6 +38,19 @@
 				"command": "commity.generateCommitMessage",
 				"title": "Generate Commity Message",
 				"icon": "$(robot)"
+			},
+			{
+				"command": "commity.refreshCommits",
+				"title": "Refresh Commits",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "commity.showCommitDiff",
+				"title": "Show Diff Combined"
+			},
+			{
+				"command": "commity.squashCommits",
+				"title": "Squash Commits"
 			}
 		],
 		"menus": {
@@ -46,6 +59,40 @@
 					"command": "commity.generateCommitMessage",
 					"group": "navigation",
 					"when": "scmProvider == git"
+				}
+			],
+			"view/title": [
+				{
+					"command": "commity.refreshCommits",
+					"when": "view == commity.commits",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "commity.showCommitDiff",
+					"when": "view == commity.commits && viewItem == commit && listMultiSelection"
+				},
+				{
+					"command": "commity.squashCommits",
+					"when": "view == commity.commits && viewItem == commit && listMultiSelection"
+				}
+			]
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "commity",
+					"title": "Commity",
+					"icon": "$(robot)"
+				}
+			]
+		},
+		"views": {
+			"commity": [
+				{
+					"id": "commity.commits",
+					"name": "Reflog"
 				}
 			]
 		}

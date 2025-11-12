@@ -4,12 +4,16 @@ jest.mock(
 		extensions: {
 			getExtension: jest.fn(),
 		},
+		Uri: {
+			file: jest.fn((path: string) => ({ fsPath: path })),
+		},
 	}),
-	{ virtual: true },
+	{ virtual: true }
 );
 
+import * as vscode from "vscode";
 import { getStagedChangesPaths } from "../git";
-import type { Repository, Change } from "../../types/git";
+import type { Repository, Change, Status } from "../../types/git";
 
 describe("getStagedChangesPaths", () => {
 	beforeEach(() => {
@@ -17,14 +21,14 @@ describe("getStagedChangesPaths", () => {
 	});
 
 	it("returns empty array when repository has no changes", () => {
-		const mockRepository: Repository = {
+		const mockRepository = {
 			state: {
 				indexChanges: [],
 				workingTreeChanges: [],
 				HEAD: { name: "main" },
 			},
-			rootUri: { fsPath: "/project" },
-		} as Repository;
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
 
 		const result = getStagedChangesPaths(mockRepository);
 
@@ -33,19 +37,34 @@ describe("getStagedChangesPaths", () => {
 
 	it("filters out node_modules files", () => {
 		const changes: Change[] = [
-			{ uri: { fsPath: "/project/src/index.ts" } } as Change,
-			{ uri: { fsPath: "/project/node_modules/package/index.js" } } as Change,
-			{ uri: { fsPath: "/project/src/utils.ts" } } as Change,
-		];
+			{
+				uri: vscode.Uri.file("/project/src/index.ts"),
+				originalUri: vscode.Uri.file("/project/src/index.ts"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/node_modules/package/index.js"),
+				originalUri: vscode.Uri.file("/project/node_modules/package/index.js"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/src/utils.ts"),
+				originalUri: vscode.Uri.file("/project/src/utils.ts"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+		] as Change[];
 
-		const mockRepository: Repository = {
+		const mockRepository = {
 			state: {
 				indexChanges: [],
 				workingTreeChanges: changes,
 				HEAD: { name: "main" },
 			},
-			rootUri: { fsPath: "/project" },
-		} as Repository;
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
 
 		const result = getStagedChangesPaths(mockRepository);
 
@@ -56,18 +75,28 @@ describe("getStagedChangesPaths", () => {
 
 	it("filters out vendor directory files", () => {
 		const changes: Change[] = [
-			{ uri: { fsPath: "/project/src/main.php" } } as Change,
-			{ uri: { fsPath: "/project/vendor/package/lib.php" } } as Change,
-		];
+			{
+				uri: vscode.Uri.file("/project/src/main.php"),
+				originalUri: vscode.Uri.file("/project/src/main.php"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/vendor/package/lib.php"),
+				originalUri: vscode.Uri.file("/project/vendor/package/lib.php"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+		] as Change[];
 
-		const mockRepository: Repository = {
+		const mockRepository = {
 			state: {
 				indexChanges: [],
 				workingTreeChanges: changes,
 				HEAD: { name: "main" },
 			},
-			rootUri: { fsPath: "/project" },
-		} as Repository;
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
 
 		const result = getStagedChangesPaths(mockRepository);
 
@@ -77,24 +106,64 @@ describe("getStagedChangesPaths", () => {
 
 	it("filters out lock files", () => {
 		const changes: Change[] = [
-			{ uri: { fsPath: "/project/package.json" } } as Change,
-			{ uri: { fsPath: "/project/package-lock.json" } } as Change,
-			{ uri: { fsPath: "/project/pnpm-lock.yaml" } } as Change,
-			{ uri: { fsPath: "/project/yarn.lock" } } as Change,
-			{ uri: { fsPath: "/project/composer.lock" } } as Change,
-			{ uri: { fsPath: "/project/Cargo.lock" } } as Change,
-			{ uri: { fsPath: "/project/Gemfile.lock" } } as Change,
-			{ uri: { fsPath: "/project/poetry.lock" } } as Change,
-		];
+			{
+				uri: vscode.Uri.file("/project/package.json"),
+				originalUri: vscode.Uri.file("/project/package.json"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/package-lock.json"),
+				originalUri: vscode.Uri.file("/project/package-lock.json"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/pnpm-lock.yaml"),
+				originalUri: vscode.Uri.file("/project/pnpm-lock.yaml"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/yarn.lock"),
+				originalUri: vscode.Uri.file("/project/yarn.lock"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/composer.lock"),
+				originalUri: vscode.Uri.file("/project/composer.lock"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/Cargo.lock"),
+				originalUri: vscode.Uri.file("/project/Cargo.lock"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/Gemfile.lock"),
+				originalUri: vscode.Uri.file("/project/Gemfile.lock"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/poetry.lock"),
+				originalUri: vscode.Uri.file("/project/poetry.lock"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+		] as Change[];
 
-		const mockRepository: Repository = {
+		const mockRepository = {
 			state: {
 				indexChanges: [],
 				workingTreeChanges: changes,
 				HEAD: { name: "main" },
 			},
-			rootUri: { fsPath: "/project" },
-		} as Repository;
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
 
 		const result = getStagedChangesPaths(mockRepository);
 
@@ -104,20 +173,40 @@ describe("getStagedChangesPaths", () => {
 
 	it("filters out minified files", () => {
 		const changes: Change[] = [
-			{ uri: { fsPath: "/project/src/app.js" } } as Change,
-			{ uri: { fsPath: "/project/dist/app.min.js" } } as Change,
-			{ uri: { fsPath: "/project/styles/main.css" } } as Change,
-			{ uri: { fsPath: "/project/styles/main.min.css" } } as Change,
-		];
+			{
+				uri: vscode.Uri.file("/project/src/app.js"),
+				originalUri: vscode.Uri.file("/project/src/app.js"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/dist/app.min.js"),
+				originalUri: vscode.Uri.file("/project/dist/app.min.js"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/styles/main.css"),
+				originalUri: vscode.Uri.file("/project/styles/main.css"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/styles/main.min.css"),
+				originalUri: vscode.Uri.file("/project/styles/main.min.css"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+		] as Change[];
 
-		const mockRepository: Repository = {
+		const mockRepository = {
 			state: {
 				indexChanges: [],
 				workingTreeChanges: changes,
 				HEAD: { name: "main" },
 			},
-			rootUri: { fsPath: "/project" },
-		} as Repository;
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
 
 		const result = getStagedChangesPaths(mockRepository);
 
@@ -128,19 +217,34 @@ describe("getStagedChangesPaths", () => {
 
 	it("filters out dist and build directories", () => {
 		const changes: Change[] = [
-			{ uri: { fsPath: "/project/src/index.ts" } } as Change,
-			{ uri: { fsPath: "/project/dist/index.js" } } as Change,
-			{ uri: { fsPath: "/project/build/output.js" } } as Change,
-		];
+			{
+				uri: vscode.Uri.file("/project/src/index.ts"),
+				originalUri: vscode.Uri.file("/project/src/index.ts"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/dist/index.js"),
+				originalUri: vscode.Uri.file("/project/dist/index.js"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/build/output.js"),
+				originalUri: vscode.Uri.file("/project/build/output.js"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+		] as Change[];
 
-		const mockRepository: Repository = {
+		const mockRepository = {
 			state: {
 				indexChanges: [],
 				workingTreeChanges: changes,
 				HEAD: { name: "main" },
 			},
-			rootUri: { fsPath: "/project" },
-		} as Repository;
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
 
 		const result = getStagedChangesPaths(mockRepository);
 
@@ -150,24 +254,49 @@ describe("getStagedChangesPaths", () => {
 
 	it("returns all changes when none match filter patterns", () => {
 		const changes: Change[] = [
-			{ uri: { fsPath: "/project/src/index.ts" } } as Change,
-			{ uri: { fsPath: "/project/src/utils.ts" } } as Change,
-			{ uri: { fsPath: "/project/README.md" } } as Change,
-		];
+			{
+				uri: vscode.Uri.file("/project/src/index.ts"),
+				originalUri: vscode.Uri.file("/project/src/index.ts"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/src/utils.ts"),
+				originalUri: vscode.Uri.file("/project/src/utils.ts"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/README.md"),
+				originalUri: vscode.Uri.file("/project/README.md"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+		] as Change[];
 
 		const stagedChanges = [
-			{ uri: { fsPath: "/project/apptest.js" } } as Change,
-			{ uri: { fsPath: "/project/styles/vendor.css" } } as Change,
-		];
+			{
+				uri: vscode.Uri.file("/project/apptest.js"),
+				originalUri: vscode.Uri.file("/project/apptest.js"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+			{
+				uri: vscode.Uri.file("/project/styles/vendor.css"),
+				originalUri: vscode.Uri.file("/project/styles/vendor.css"),
+				renameUri: undefined,
+				status: 5 as Status,
+			},
+		] as Change[];
 
-		const mockRepository: Repository = {
+		const mockRepository = {
 			state: {
 				indexChanges: stagedChanges,
 				workingTreeChanges: changes,
 				HEAD: { name: "main" },
 			},
-			rootUri: { fsPath: "/project" },
-		} as Repository;
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
 
 		const result = getStagedChangesPaths(mockRepository);
 
@@ -177,18 +306,28 @@ describe("getStagedChangesPaths", () => {
 	describe("Multi-Repository Support", () => {
 		it("handles different repository paths correctly", () => {
 			const repo1Changes: Change[] = [
-				{ uri: { fsPath: "/workspace/repo1/src/main.ts" } } as Change,
-				{ uri: { fsPath: "/workspace/repo1/node_modules/lib.js" } } as Change,
-			];
+				{
+					uri: vscode.Uri.file("/workspace/repo1/src/main.ts"),
+					originalUri: vscode.Uri.file("/workspace/repo1/src/main.ts"),
+					renameUri: undefined,
+					status: 5 as Status,
+				},
+				{
+					uri: vscode.Uri.file("/workspace/repo1/node_modules/lib.js"),
+					originalUri: vscode.Uri.file("/workspace/repo1/node_modules/lib.js"),
+					renameUri: undefined,
+					status: 5 as Status,
+				},
+			] as Change[];
 
-			const mockRepo1: Repository = {
+			const mockRepo1 = {
 				state: {
 					indexChanges: [],
 					workingTreeChanges: repo1Changes,
 					HEAD: { name: "main" },
 				},
-				rootUri: { fsPath: "/workspace/repo1" },
-			} as Repository;
+				rootUri: vscode.Uri.file("/workspace/repo1"),
+			} as unknown as Repository;
 
 			const result = getStagedChangesPaths(mockRepo1);
 
@@ -198,18 +337,28 @@ describe("getStagedChangesPaths", () => {
 
 		it("correctly filters files relative to repository root", () => {
 			const repo2Changes: Change[] = [
-				{ uri: { fsPath: "/workspace/repo2/src/index.ts" } } as Change,
-				{ uri: { fsPath: "/workspace/repo2/dist/index.js" } } as Change,
-			];
+				{
+					uri: vscode.Uri.file("/workspace/repo2/src/index.ts"),
+					originalUri: vscode.Uri.file("/workspace/repo2/src/index.ts"),
+					renameUri: undefined,
+					status: 5 as Status,
+				},
+				{
+					uri: vscode.Uri.file("/workspace/repo2/dist/index.js"),
+					originalUri: vscode.Uri.file("/workspace/repo2/dist/index.js"),
+					renameUri: undefined,
+					status: 5 as Status,
+				},
+			] as Change[];
 
-			const mockRepo2: Repository = {
+			const mockRepo2 = {
 				state: {
 					indexChanges: [],
 					workingTreeChanges: repo2Changes,
 					HEAD: { name: "develop" },
 				},
-				rootUri: { fsPath: "/workspace/repo2" },
-			} as Repository;
+				rootUri: vscode.Uri.file("/workspace/repo2"),
+			} as unknown as Repository;
 
 			const result = getStagedChangesPaths(mockRepo2);
 
