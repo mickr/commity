@@ -20,6 +20,7 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 	private _onDidChangeTreeData = new vscode.EventEmitter<CommitItem | undefined | null | void>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 	private diffProvider: CommitDiffProvider;
+	private commitOrder: string[] = [];
 
 	constructor(private context: vscode.ExtensionContext) {
 		this.diffProvider = new CommitDiffProvider();
@@ -56,16 +57,33 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 
 		const commits = await this.getRecentCommits(repository);
 
-		return commits.map(
+		const commitItems = commits.map(
 			(commit) =>
 				new CommitItem(
 					commit.hash,
 					commit.message,
+					commit.author,
 					commit.hash,
 					vscode.TreeItemCollapsibleState.None,
 					repository
 				)
 		);
+
+		this.commitOrder = commitItems.map((item) => item.hash);
+
+		return commitItems;
+	}
+
+	areCommitsContiguous(selection: readonly CommitItem[]): boolean {
+		if (selection.length === 0) {
+			return false;
+		}
+
+		if (selection.length === 1) {
+			return true;
+		}
+
+		return this.isSelectionContiguous(selection);
 	}
 
 	private getActiveRepository(repositories: Repository[]): Repository | undefined {
@@ -84,11 +102,12 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 
 	private async getRecentCommits(
 		repository: Repository
-	): Promise<Array<{ hash: string; message: string }>> {
+	): Promise<Array<{ author: string; hash: string; message: string }>> {
 		try {
 			const log = repository.state.HEAD?.commit ? await repository.log({ maxEntries: 20 }) : [];
 
 			return log.map((commit) => ({
+				author: commit.authorName || "",
 				hash: commit.hash.substring(0, 7),
 				message: commit.message.split("\n")[0],
 			}));
@@ -97,7 +116,10 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 		}
 	}
 
-	async showCommitDiff(commits: readonly CommitItem[] | CommitItem): Promise<void> {
+	async showCommitDiff(
+		commits: readonly CommitItem[] | CommitItem,
+		options?: { preserveFocus?: boolean }
+	): Promise<void> {
 		const commitArray = Array.isArray(commits) ? commits : [commits];
 
 		if (commitArray.length === 0) {
@@ -119,6 +141,7 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 			await vscode.window.showTextDocument(doc, {
 				preview: false,
 				viewColumn: vscode.ViewColumn.Two,
+				preserveFocus: options?.preserveFocus ?? false,
 			});
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to show diff: ${error}`);
@@ -143,23 +166,47 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 			return `Failed to generate diff: ${error}`;
 		}
 	}
+
+	private isSelectionContiguous(selection: readonly CommitItem[]): boolean {
+		if (selection.length < 2 || this.commitOrder.length === 0) {
+			return false;
+		}
+
+		const indices = selection
+			.map((item) => this.commitOrder.indexOf(item.hash))
+			.filter((idx) => idx !== -1)
+			.sort((a, b) => a - b);
+
+		if (indices.length !== selection.length) {
+			return false;
+		}
+
+		for (let i = 1; i < indices.length; i += 1) {
+			if (indices[i] - indices[i - 1] !== 1) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 }
 
-class CommitItem extends vscode.TreeItem {
+export class CommitItem extends vscode.TreeItem {
 	constructor(
 		public readonly hash: string,
 		public readonly message: string,
+		public readonly author: string,
 		public readonly id: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
 		public readonly repository: Repository
 	) {
-		super(`${message}`, collapsibleState);
-		this.tooltip = `${message} - ${hash}`;
+		const initials = author
+			.split(" ")
+			.map((name) => name[0])
+			.join("");
+		super(`${hash.substring(0, 7)} • ${initials} • ${message}`, collapsibleState);
+
+		this.tooltip = `${message} -${hash}`;
 		this.contextValue = "commit";
-		this.command = {
-			command: "commity.showCommitDiff",
-			title: "Show Commit Diff",
-			arguments: [this],
-		};
 	}
 }
