@@ -1,3 +1,5 @@
+const mockExecFileAsync = jest.fn();
+
 jest.mock(
 	"vscode",
 	() => ({
@@ -11,8 +13,26 @@ jest.mock(
 	{ virtual: true }
 );
 
+jest.mock("node:child_process", () => ({
+	execFile: jest.fn(),
+	execFileSync: jest.fn(),
+	execSync: jest.fn(),
+}));
+
+jest.mock("node:util", () => ({
+	promisify: jest.fn(() => mockExecFileAsync),
+}));
+
 import * as vscode from "vscode";
-import { getStagedChangesPaths } from "../git";
+import {
+	getStagedChangesPaths,
+	SquashError,
+	formatCommitRange,
+	ensureCleanWorkingTree,
+	getActualCurrentBranch,
+	performSoftResetSquash,
+	performRebaseSquash,
+} from "../git";
 import type { Repository, Change, Status } from "../../types/git";
 
 describe("getStagedChangesPaths", () => {
@@ -365,5 +385,398 @@ describe("getStagedChangesPaths", () => {
 			expect(result).toHaveLength(1);
 			expect(result[0].uri.fsPath).toBe("/workspace/repo2/src/index.ts");
 		});
+	});
+});
+
+describe("SquashError", () => {
+	it("creates error with message", () => {
+		const error = new SquashError("Test error");
+		expect(error.message).toBe("Test error");
+		expect(error.name).toBe("SquashError");
+		expect(error.stderr).toBeUndefined();
+	});
+
+	it("creates error with message and stderr", () => {
+		const error = new SquashError("Test error", "stderr output");
+		expect(error.message).toBe("Test error");
+		expect(error.stderr).toBe("stderr output");
+		expect(error.name).toBe("SquashError");
+	});
+
+	it("is instance of Error", () => {
+		const error = new SquashError("Test");
+		expect(error).toBeInstanceOf(Error);
+		expect(error).toBeInstanceOf(SquashError);
+	});
+});
+
+describe("formatCommitRange", () => {
+	it("returns empty string for empty array", () => {
+		expect(formatCommitRange([])).toBe("");
+	});
+
+	it("returns single hash for single commit", () => {
+		expect(formatCommitRange(["abc123"])).toBe("abc123");
+	});
+
+	it("returns range for multiple commits", () => {
+		expect(formatCommitRange(["def456", "abc123"])).toBe("def456 → abc123");
+	});
+
+	it("returns range for many commits (newest → oldest)", () => {
+		const hashes = ["hash5", "hash4", "hash3", "hash2", "hash1"];
+		expect(formatCommitRange(hashes)).toBe("hash5 → hash1");
+	});
+});
+
+describe("ensureCleanWorkingTree", () => {
+	it("returns true when working tree is clean", async () => {
+		const mockRepository = {
+			status: jest.fn().mockResolvedValue(undefined),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
+		} as unknown as Repository;
+
+		const result = await ensureCleanWorkingTree(mockRepository);
+		expect(result).toBe(true);
+	});
+
+	it("returns false when there are index changes", async () => {
+		const mockRepository = {
+			status: jest.fn().mockResolvedValue(undefined),
+			state: {
+				indexChanges: [{ uri: vscode.Uri.file("/test.ts") }],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
+		} as unknown as Repository;
+
+		const result = await ensureCleanWorkingTree(mockRepository);
+		expect(result).toBe(false);
+	});
+
+	it("returns false when there are working tree changes", async () => {
+		const mockRepository = {
+			status: jest.fn().mockResolvedValue(undefined),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [{ uri: vscode.Uri.file("/test.ts") }],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
+		} as unknown as Repository;
+
+		const result = await ensureCleanWorkingTree(mockRepository);
+		expect(result).toBe(false);
+	});
+
+	it("returns false when there are untracked changes", async () => {
+		const mockRepository = {
+			status: jest.fn().mockResolvedValue(undefined),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [{ uri: vscode.Uri.file("/new.ts") }],
+				mergeChanges: [],
+			},
+		} as unknown as Repository;
+
+		const result = await ensureCleanWorkingTree(mockRepository);
+		expect(result).toBe(false);
+	});
+
+	it("returns false when there are merge changes", async () => {
+		const mockRepository = {
+			status: jest.fn().mockResolvedValue(undefined),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [{ uri: vscode.Uri.file("/conflict.ts") }],
+			},
+		} as unknown as Repository;
+
+		const result = await ensureCleanWorkingTree(mockRepository);
+		expect(result).toBe(false);
+	});
+
+	it("continues when status() throws error", async () => {
+		const mockRepository = {
+			status: jest.fn().mockRejectedValue(new Error("Git error")),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
+		} as unknown as Repository;
+
+		const result = await ensureCleanWorkingTree(mockRepository);
+		expect(result).toBe(true);
+	});
+
+	it("handles repository without status method", async () => {
+		const mockRepository = {
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
+		} as unknown as Repository;
+
+		const result = await ensureCleanWorkingTree(mockRepository);
+		expect(result).toBe(true);
+	});
+});
+
+describe("getActualCurrentBranch", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("returns branch name when on a branch", async () => {
+		mockExecFileAsync.mockResolvedValue({ stdout: "feature/test\n" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getActualCurrentBranch(mockRepository);
+		expect(result).toBe("feature/test");
+		expect(mockExecFileAsync).toHaveBeenCalledWith("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+			cwd: "/project",
+		});
+	});
+
+	it("returns empty string when in detached HEAD state", async () => {
+		mockExecFileAsync.mockResolvedValue({ stdout: "HEAD\n" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getActualCurrentBranch(mockRepository);
+		expect(result).toBe("");
+	});
+
+	it("returns empty string on git error", async () => {
+		mockExecFileAsync.mockRejectedValue(new Error("Not a git repository"));
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getActualCurrentBranch(mockRepository);
+		expect(result).toBe("");
+	});
+});
+
+describe("performSoftResetSquash", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("performs soft reset and commits with new message", async () => {
+		mockExecFileAsync
+			.mockResolvedValueOnce({ stdout: "" })
+			.mockResolvedValueOnce({ stdout: "" })
+			.mockResolvedValueOnce({ stdout: "abc1234\n" })
+			.mockResolvedValueOnce({ stdout: "abc1234567890\n" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await performSoftResetSquash({
+			repository: mockRepository,
+			oldestCommitHash: "def5678",
+			message: "Squashed commit",
+		});
+
+		expect(result).toEqual({
+			shortCommitHash: "abc1234",
+			newCommitHash: "abc1234567890",
+		});
+
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(1, "git", ["reset", "--soft", "def5678^"], {
+			cwd: "/project",
+		});
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(
+			2,
+			"git",
+			["commit", "-m", "Squashed commit"],
+			{
+				cwd: "/project",
+			}
+		);
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(3, "git", ["rev-parse", "--short", "HEAD"], {
+			cwd: "/project",
+		});
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(4, "git", ["rev-parse", "HEAD"], {
+			cwd: "/project",
+		});
+	});
+
+	it("throws SquashError when reset fails", async () => {
+		const gitError = new Error("reset failed");
+		(gitError as { stderr?: string }).stderr = "fatal: ambiguous argument";
+		mockExecFileAsync.mockRejectedValue(gitError);
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		await expect(
+			performSoftResetSquash({
+				repository: mockRepository,
+				oldestCommitHash: "invalid",
+				message: "Test",
+			})
+		).rejects.toThrow(SquashError);
+	});
+
+	it("throws SquashError when commit fails", async () => {
+		mockExecFileAsync.mockResolvedValueOnce({ stdout: "" });
+
+		const gitError = new Error("commit failed");
+		(gitError as { stderr?: string }).stderr = "nothing to commit";
+		mockExecFileAsync.mockRejectedValueOnce(gitError);
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		await expect(
+			performSoftResetSquash({
+				repository: mockRepository,
+				oldestCommitHash: "def5678",
+				message: "Test",
+			})
+		).rejects.toThrow(SquashError);
+	});
+});
+
+describe("performRebaseSquash", () => {
+	let writeFileMock: jest.Mock;
+	let unlinkMock: jest.Mock;
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		writeFileMock = jest.fn().mockResolvedValue(undefined);
+		unlinkMock = jest.fn().mockResolvedValue(undefined);
+
+		jest.doMock("node:fs/promises", () => ({
+			writeFile: writeFileMock,
+			unlink: unlinkMock,
+		}));
+	});
+
+	it("performs interactive rebase squash successfully", async () => {
+		mockExecFileAsync
+			.mockResolvedValueOnce({ stdout: "" })
+			.mockResolvedValueOnce({ stdout: "abc1234\n" })
+			.mockResolvedValueOnce({ stdout: "abc1234567890\n" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await performRebaseSquash({
+			repository: mockRepository,
+			commitHashes: ["newest", "middle", "oldest"],
+			message: "Squashed commits",
+		});
+
+		expect(result).toEqual({
+			shortCommitHash: "abc1234",
+			newCommitHash: "abc1234567890",
+		});
+
+		expect(mockExecFileAsync).toHaveBeenCalledWith(
+			"git",
+			["rebase", "-i", "--autosquash", "oldest^"],
+			expect.objectContaining({
+				cwd: "/project",
+				env: expect.objectContaining({
+					GIT_SEQUENCE_EDITOR: expect.stringContaining("cat"),
+					GIT_EDITOR: expect.stringContaining("cat"),
+				}),
+			})
+		);
+	});
+
+	it("aborts rebase on failure", async () => {
+		const gitError = new Error("rebase failed");
+		(gitError as { stderr?: string }).stderr = "Could not apply";
+		mockExecFileAsync.mockRejectedValueOnce(gitError);
+
+		const abortMock = jest.fn().mockResolvedValue({ stdout: "" });
+		mockExecFileAsync.mockImplementationOnce(() => Promise.reject(gitError));
+		mockExecFileAsync.mockImplementationOnce(abortMock);
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		await expect(
+			performRebaseSquash({
+				repository: mockRepository,
+				commitHashes: ["hash1", "hash2"],
+				message: "Test",
+			})
+		).rejects.toThrow(SquashError);
+	});
+
+	it("includes abort failure in error when abort fails", async () => {
+		const gitError = new Error("rebase failed");
+		(gitError as { stderr?: string }).stderr = "Could not apply";
+
+		const abortError = new Error("abort failed");
+		(abortError as { stderr?: string }).stderr = "fatal: no rebase in progress";
+
+		mockExecFileAsync
+			.mockImplementationOnce(() => Promise.reject(gitError))
+			.mockImplementationOnce(() => Promise.reject(abortError));
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const error = await performRebaseSquash({
+			repository: mockRepository,
+			commitHashes: ["hash1", "hash2"],
+			message: "Test",
+		}).catch((e) => e);
+
+		expect(error).toBeInstanceOf(SquashError);
+		expect((error as SquashError).stderr).toContain("Could not apply");
+		expect((error as SquashError).stderr).toContain("Failed to abort rebase");
+		expect((error as SquashError).stderr).toContain("abort failed");
+	});
+
+	it("creates todo script with correct format", async () => {
+		mockExecFileAsync
+			.mockResolvedValueOnce({ stdout: "" })
+			.mockResolvedValueOnce({ stdout: "abc1234\n" })
+			.mockResolvedValueOnce({ stdout: "abc1234567890\n" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		await performRebaseSquash({
+			repository: mockRepository,
+			commitHashes: ["hash3", "hash2", "hash1"],
+			message: "Squashed",
+		});
+
+		const rebaseCall = mockExecFileAsync.mock.calls.find((call) => call[1]?.[0] === "rebase");
+		expect(rebaseCall).toBeDefined();
 	});
 });

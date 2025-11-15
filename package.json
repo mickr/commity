@@ -51,6 +51,10 @@
 			{
 				"command": "commity.squashCommits",
 				"title": "Squash Commits"
+			},
+			{
+				"command": "commity.squashCommitsInteractive",
+				"title": "Squash Commits (Interactive)"
 			}
 		],
 		"menus": {
@@ -75,6 +79,10 @@
 				},
 				{
 					"command": "commity.squashCommits",
+					"when": "view == commity.commits && viewItem == commit && listMultiSelection"
+				},
+				{
+					"command": "commity.squashCommitsInteractive",
 					"when": "view == commity.commits && viewItem == commit && listMultiSelection"
 				}
 			]

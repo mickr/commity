@@ -64,6 +64,7 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 					commit.message,
 					commit.author,
 					commit.hash,
+					commit.fullHash,
 					vscode.TreeItemCollapsibleState.None,
 					repository
 				)
@@ -86,6 +87,24 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 		return this.isSelectionContiguous(selection);
 	}
 
+	selectionStartsAtHead(selection: readonly CommitItem[]): boolean {
+		if (selection.length === 0 || this.commitOrder.length === 0) {
+			return false;
+		}
+
+		const indices = this.getSelectionIndices(selection);
+
+		if (indices.length !== selection.length) {
+			return false;
+		}
+
+		return Math.min(...indices) === 0;
+	}
+
+	sortSelectionByHistory(selection: readonly CommitItem[]): CommitItem[] {
+		return [...selection].sort((a, b) => this.getCommitIndex(a) - this.getCommitIndex(b));
+	}
+
 	private getActiveRepository(repositories: Repository[]): Repository | undefined {
 		const activeEditor = vscode.window.activeTextEditor;
 
@@ -102,13 +121,19 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 
 	private async getRecentCommits(
 		repository: Repository
-	): Promise<Array<{ author: string; hash: string; message: string }>> {
+	): Promise<Array<{ author: string; hash: string; fullHash: string; message: string }>> {
 		try {
-			const log = repository.state.HEAD?.commit ? await repository.log({ maxEntries: 20 }) : [];
+			const currentBranch = repository.state.HEAD?.name;
+			if (!currentBranch || !repository.state.HEAD?.commit) {
+				return [];
+			}
+
+			const log = await repository.log({ maxEntries: 20 });
 
 			return log.map((commit) => ({
 				author: commit.authorName || "",
 				hash: commit.hash.substring(0, 7),
+				fullHash: commit.hash,
 				message: commit.message.split("\n")[0],
 			}));
 		} catch {
@@ -130,7 +155,7 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 		try {
 			const diff = await this.getCommitDiff(
 				commitArray[0].repository,
-				commitArray.map((c) => c.hash)
+				commitArray.map((c) => c.fullHash ?? c.hash)
 			);
 			const uri = vscode.Uri.parse("commity-diff:Commity Diff.diff");
 
@@ -167,15 +192,23 @@ export class CommitsViewProvider implements vscode.TreeDataProvider<CommitItem> 
 		}
 	}
 
+	private getCommitIndex(item: CommitItem): number {
+		return this.commitOrder.indexOf(item.hash);
+	}
+
+	private getSelectionIndices(selection: readonly CommitItem[]): number[] {
+		return selection
+			.map((item) => this.getCommitIndex(item))
+			.filter((idx) => idx !== -1)
+			.sort((a, b) => a - b);
+	}
+
 	private isSelectionContiguous(selection: readonly CommitItem[]): boolean {
 		if (selection.length < 2 || this.commitOrder.length === 0) {
 			return false;
 		}
 
-		const indices = selection
-			.map((item) => this.commitOrder.indexOf(item.hash))
-			.filter((idx) => idx !== -1)
-			.sort((a, b) => a - b);
+		const indices = this.getSelectionIndices(selection);
 
 		if (indices.length !== selection.length) {
 			return false;
@@ -197,6 +230,7 @@ export class CommitItem extends vscode.TreeItem {
 		public readonly message: string,
 		public readonly author: string,
 		public readonly id: string,
+		public readonly fullHash: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
 		public readonly repository: Repository
 	) {
@@ -206,7 +240,7 @@ export class CommitItem extends vscode.TreeItem {
 			.join("");
 		super(`${hash.substring(0, 7)} • ${initials} • ${message}`, collapsibleState);
 
-		this.tooltip = `${message} -${hash}`;
+		this.tooltip = `${message} • ${hash}`;
 		this.contextValue = "commit";
 	}
 }
