@@ -291,3 +291,39 @@ export async function performRebaseSquash({
 		}
 	}
 }
+
+export interface ReflogEntry {
+	hash: string;
+	selector: string;
+	message: string;
+	timestamp: string;
+}
+
+export async function getReflogEntries(repository: Repository): Promise<ReflogEntry[]> {
+	const cwd = repository.rootUri.fsPath;
+
+	try {
+		const reflogOutput = await runGit(
+			["reflog", "--format=%H|%gd|%gs|%ci", "--all", "-n", "100"],
+			cwd
+		);
+
+		const entries = reflogOutput
+			.split("\n")
+			.filter((line) => line.trim().length > 0)
+			.map((line) => {
+				const [hash, selector, message, timestamp] = line.split("|");
+				return {
+					hash: hash || "",
+					selector: selector || "",
+					message: message || "",
+					timestamp: timestamp || "",
+				};
+			});
+
+		return entries;
+	} catch (error) {
+		console.error("Failed to get reflog entries:", error);
+		return [];
+	}
+}

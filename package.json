@@ -40,21 +40,9 @@
 				"icon": "$(robot)"
 			},
 			{
-				"command": "commity.refreshCommits",
-				"title": "Refresh Commits",
+				"command": "commity.refreshReflog",
+				"title": "Refresh Reflog",
 				"icon": "$(refresh)"
-			},
-			{
-				"command": "commity.showCommitDiff",
-				"title": "Show Diff Combined"
-			},
-			{
-				"command": "commity.squashCommits",
-				"title": "Squash Commits"
-			},
-			{
-				"command": "commity.squashCommitsInteractive",
-				"title": "Squash Commits (Interactive)"
 			}
 		],
 		"menus": {
@@ -67,23 +55,9 @@
 			],
 			"view/title": [
 				{
-					"command": "commity.refreshCommits",
-					"when": "view == commity.commits",
+					"command": "commity.refreshReflog",
+					"when": "view == commity.reflogView",
 					"group": "navigation"
-				}
-			],
-			"view/item/context": [
-				{
-					"command": "commity.showCommitDiff",
-					"when": "view == commity.commits && viewItem == commit && listMultiSelection"
-				},
-				{
-					"command": "commity.squashCommits",
-					"when": "view == commity.commits && viewItem == commit && listMultiSelection"
-				},
-				{
-					"command": "commity.squashCommitsInteractive",
-					"when": "view == commity.commits && viewItem == commit && listMultiSelection"
 				}
 			]
 		},
@@ -99,8 +73,9 @@
 		"views": {
 			"commity": [
 				{
-					"id": "commity.commits",
-					"name": "Reflog"
+					"id": "commity.reflogView",
+					"name": "Reflog",
+					"type": "webview"
 				}
 			]
 		}
@@ -111,6 +86,7 @@
 		"watch": "npm-run-all -p watch:*",
 		"watch:esbuild": "node esbuild.js --watch",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+		"watch:tsc-webview": "tsc --noEmit --watch --project src/webview/tsconfig.json",
 		"package": "npm run check-types && node esbuild.js --production",
 		"check-types": "tsc --noEmit",
 		"pretest": "npm run compile && npm run lint",
@@ -132,6 +108,8 @@
 		"@types/jest": "^30.0.0",
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "20.x",
+		"@types/react": "^19.2.5",
+		"@types/react-dom": "^19.2.3",
 		"@types/vscode": "^1.80.0",
 		"@typescript-eslint/eslint-plugin": "^6.4.1",
 		"@typescript-eslint/parser": "^6.4.1",
@@ -144,6 +122,8 @@
 		"npm-run-all": "^4.1.5",
 		"openai": "^4.75.0",
 		"prettier": "^3.6.2",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
 		"semantic-release": "^24.2.0",
 		"ts-jest": "^29.4.5",
 		"typescript": "^5.1.6",

@@ -1,44 +1,78 @@
-const esbuild = require('esbuild');
+/* eslint-env node */
+/* eslint-disable @typescript-eslint/no-var-requires */
 
-const production = process.argv.includes('--production');
-const watch = process.argv.includes('--watch');
+const esbuild = require("esbuild");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const production = process.argv.includes("--production");
+const watch = process.argv.includes("--watch");
 
 async function main() {
-	const ctx = await esbuild.context({
-		entryPoints: ['src/extension.ts'],
+	const extensionCtx = await esbuild.context({
+		entryPoints: ["src/extension.ts"],
 		bundle: true,
-		format: 'cjs',
+		format: "cjs",
 		minify: production,
 		sourcemap: !production,
 		sourcesContent: false,
-		platform: 'node',
-		outfile: 'out/extension.js',
-		external: ['vscode'],
-		logLevel: 'silent',
+		platform: "node",
+		outfile: "out/extension.js",
+		external: ["vscode"],
+		logLevel: "silent",
 		plugins: [
 			{
-				name: 'watch-plugin',
+				name: "watch-plugin",
 				setup(build) {
 					build.onStart(() => {
-						console.log('[watch] build started');
+						console.log("[watch] build started");
 					});
+
 					build.onEnd((result) => {
 						result.errors.forEach(({ text, location }) => {
 							console.error(`✘ [ERROR] ${text}`);
 							console.error(`    ${location.file}:${location.line}:${location.column}:`);
 						});
-						console.log('[watch] build finished');
+						console.log("[watch] build finished");
 					});
 				},
 			},
 		],
 	});
 
+	const webviewCtx = await esbuild.context({
+		entryPoints: ["src/webview/reflog.tsx"],
+		bundle: true,
+		format: "iife",
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		platform: "browser",
+		outfile: "out/webview/reflog.js",
+		logLevel: "silent",
+		loader: {
+			".module.css": "local-css",
+		},
+		jsx: "automatic",
+	});
+
+	const cssSource = path.join(__dirname, "src/webview/reflog.css");
+	const cssTarget = path.join(__dirname, "out/webview/reflog.css");
+
+	if (!fs.existsSync(path.dirname(cssTarget))) {
+		fs.mkdirSync(path.dirname(cssTarget), { recursive: true });
+	}
+
+	fs.copyFileSync(cssSource, cssTarget);
+
 	if (watch) {
-		await ctx.watch();
+		await extensionCtx.watch();
+		await webviewCtx.watch();
 	} else {
-		await ctx.rebuild();
-		await ctx.dispose();
+		await extensionCtx.rebuild();
+		await webviewCtx.rebuild();
+		await extensionCtx.dispose();
+		await webviewCtx.dispose();
 	}
 }
 
@@ -46,4 +80,3 @@ main().catch((e) => {
 	console.error(e);
 	process.exit(1);
 });
-
