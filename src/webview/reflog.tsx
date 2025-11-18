@@ -50,19 +50,29 @@ function formatTimestamp(timestamp: string): string {
 
 interface ReflogEntryProps {
 	entry: ReflogEntry;
+	index: number;
 	isSelected: boolean;
-	onSelect: (hash: string) => void;
+	onSelect: (index: number, shiftKey: boolean, metaKey: boolean) => void;
+	onContextMenu: (index: number, event: React.MouseEvent) => void;
 	onReset: (entry: ReflogEntry) => void;
 }
 
-function ReflogEntryComponent({ entry, isSelected, onSelect, onReset }: ReflogEntryProps) {
+function ReflogEntryComponent({ entry, index, isSelected, onSelect, onContextMenu, onReset }: ReflogEntryProps) {
 	const handleSelectionClick = useCallback(
 		(e: React.MouseEvent) => {
 			e.stopPropagation();
-			console.log("selectionClick", entry.hash);
-			onSelect(entry.hash);
+			onSelect(index, e.shiftKey, e.metaKey || e.ctrlKey);
 		},
-		[entry.hash, onSelect]
+		[index, onSelect]
+	);
+
+	const handleContextMenu = useCallback(
+		(e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			onContextMenu(index, e);
+		},
+		[index, onContextMenu]
 	);
 
 	const handleReset = useCallback(
@@ -77,6 +87,7 @@ function ReflogEntryComponent({ entry, isSelected, onSelect, onReset }: ReflogEn
 		<div
 			className={`${styles.reflogEntry} ${isSelected ? styles.selected : ""}`}
 			onClick={handleSelectionClick}
+			onContextMenu={handleContextMenu}
 		>
 			<div className={styles.entryContent}>
 				<div className={styles.entryHeader}>
@@ -97,7 +108,9 @@ function ReflogEntryComponent({ entry, isSelected, onSelect, onReset }: ReflogEn
 
 function App() {
 	const [entries, setEntries] = useState<ReflogEntry[]>([]);
-	const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
+	const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+	const [firstClickIndex, setFirstClickIndex] = useState<number | null>(null);
+	const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
 	useEffect(() => {
 		const messageHandler = (event: MessageEvent<Message>) => {
@@ -116,31 +129,111 @@ function App() {
 	}, []);
 
 	const handleSelectEntry = useCallback(
-		(hash: string) => {
-			console.log("selectEntry", hash);
-			const entry = entries.find((e) => e.hash === hash);
-			if (entry) {
-				vscode.postMessage({ type: "selectEntry", entry });
+		(clickedIndex: number, shiftKey: boolean, metaKey: boolean) => {
+			if (shiftKey && firstClickIndex !== null) {
+				const startIndex = Math.min(firstClickIndex, clickedIndex);
+				const endIndex = Math.max(firstClickIndex, clickedIndex);
+				const selectedRange = entries.slice(startIndex, endIndex + 1);
+				const newSelectedIndices = new Set(
+					Array.from({ length: endIndex - startIndex + 1 }, (_, i) => startIndex + i)
+				);
+
+				setSelectedIndices(newSelectedIndices);
+
+				vscode.postMessage({
+					type: "selectEntries",
+					entries: selectedRange,
+				});
+			} else if (metaKey) {
+				const newSelectedIndices = new Set(selectedIndices);
+				if (newSelectedIndices.has(clickedIndex)) {
+					newSelectedIndices.delete(clickedIndex);
+				} else {
+					newSelectedIndices.add(clickedIndex);
+				}
+				setSelectedIndices(newSelectedIndices);
+
+				if (newSelectedIndices.size === 0) {
+					setFirstClickIndex(null);
+				} else if (!firstClickIndex) {
+					setFirstClickIndex(clickedIndex);
+				}
+			} else {
+				setFirstClickIndex(clickedIndex);
+				setSelectedIndices(new Set([clickedIndex]));
 			}
 		},
-		[entries]
+		[entries, firstClickIndex, selectedIndices]
 	);
-
-	const handleToggleCheckbox = useCallback((hash: string, checked: boolean) => {
-		setSelectedHashes((prev) => {
-			const next = new Set(prev);
-			if (checked) {
-				next.add(hash);
-			} else {
-				next.delete(hash);
-			}
-			return next;
-		});
-	}, []);
 
 	const handleReset = useCallback((entry: ReflogEntry) => {
 		vscode.postMessage({ type: "resetToEntry", entry });
 	}, []);
+
+	const isContiguous = useCallback((indices: Set<number>) => {
+		if (indices.size <= 1) {
+			return true;
+		}
+		const sorted = Array.from(indices).sort((a, b) => a - b);
+		for (let i = 1; i < sorted.length; i++) {
+			if (sorted[i] - sorted[i - 1] !== 1) {
+				return false;
+			}
+		}
+		return true;
+	}, []);
+
+	const handleContextMenu = useCallback(
+		(_index: number, event: React.MouseEvent) => {
+			if (selectedIndices.size > 1) {
+				setContextMenu({ x: event.clientX, y: event.clientY });
+			}
+		},
+		[selectedIndices]
+	);
+
+	const handleSquash = useCallback(() => {
+		const selectedEntries = Array.from(selectedIndices)
+			.sort((a, b) => a - b)
+			.map((i) => entries[i]);
+
+		vscode.postMessage({
+			type: "squashCommits",
+			entries: selectedEntries,
+		});
+
+		setContextMenu(null);
+		setSelectedIndices(new Set());
+	}, [selectedIndices, entries]);
+
+	useEffect(() => {
+		if (contextMenu) {
+			const handleEscape = (e: KeyboardEvent) => {
+				if (e.key === "Escape") {
+					setContextMenu(null);
+				}
+			};
+
+			const handleClickOutside = (e: MouseEvent) => {
+				const target = e.target as HTMLElement;
+				if (!target.closest(`.${styles.contextMenu}`)) {
+					setContextMenu(null);
+				}
+			};
+
+			const timeoutId = setTimeout(() => {
+				window.addEventListener("mousedown", handleClickOutside);
+			}, 0);
+
+			window.addEventListener("keydown", handleEscape);
+
+			return () => {
+				clearTimeout(timeoutId);
+				window.removeEventListener("mousedown", handleClickOutside);
+				window.removeEventListener("keydown", handleEscape);
+			};
+		}
+	}, [contextMenu]);
 
 	return (
 		<div className={styles.app}>
@@ -154,19 +247,37 @@ function App() {
 					<p className={styles.loading}>Loading reflog...</p>
 				) : (
 					<div className={styles.reflogList}>
-						{entries.map((entry) => (
+						{entries.map((entry, index) => (
 							<ReflogEntryComponent
-								key={entry.hash}
+								key={`${entry.hash}-${index}`}
 								entry={entry}
-								isSelected={selectedHashes.has(entry.hash)}
+								index={index}
+								isSelected={selectedIndices.has(index)}
 								onSelect={handleSelectEntry}
-								onToggleCheckbox={handleToggleCheckbox}
+								onContextMenu={handleContextMenu}
 								onReset={handleReset}
 							/>
 						))}
 					</div>
 				)}
 			</div>
+			{contextMenu && (
+				<div
+					className={styles.contextMenu}
+					style={{ top: contextMenu.y, left: contextMenu.x }}
+					onClick={(e) => e.stopPropagation()}
+				>
+					{isContiguous(selectedIndices) ? (
+						<button className={styles.contextMenuItem} onClick={handleSquash}>
+							Squash {selectedIndices.size} commits
+						</button>
+					) : (
+						<div className={styles.contextMenuDisabled}>
+							Squash only works on contiguous commits
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }

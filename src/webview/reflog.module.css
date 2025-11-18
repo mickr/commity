@@ -66,6 +66,7 @@
 	border-bottom: 1px solid var(--vscode-panel-border);
 	cursor: pointer;
 	transition: background-color 0.1s;
+	user-select: none;
 }
 
 .reflogEntry:hover {
@@ -139,4 +140,39 @@
 
 .resetBtn {
 	white-space: nowrap;
+}
+
+.contextMenu {
+	position: fixed;
+	background-color: var(--vscode-menu-background);
+	border: 1px solid var(--vscode-menu-border);
+	border-radius: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	padding: 4px 0;
+	z-index: 1000;
+	min-width: 150px;
+}
+
+.contextMenuItem {
+	width: 100%;
+	padding: 6px 12px;
+	border: none;
+	background: none;
+	color: var(--vscode-menu-foreground);
+	text-align: left;
+	cursor: pointer;
+	font-size: 13px;
+	display: block;
+}
+
+.contextMenuItem:hover {
+	background-color: var(--vscode-menu-selectionBackground);
+	color: var(--vscode-menu-selectionForeground);
+}
+
+.contextMenuDisabled {
+	padding: 6px 12px;
+	color: var(--vscode-disabledForeground);
+	font-size: 13px;
+	font-style: italic;
 }

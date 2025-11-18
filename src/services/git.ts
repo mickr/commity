@@ -303,19 +303,19 @@ export async function getReflogEntries(repository: Repository): Promise<ReflogEn
 	const cwd = repository.rootUri.fsPath;
 
 	try {
-		const reflogOutput = await runGit(
-			["reflog", "--format=%H|%gd|%gs|%ci", "--all", "-n", "100"],
+		const logOutput = await runGit(
+			["log", "--format=%H|%s|%ci", "-n", "100"],
 			cwd
 		);
 
-		const entries = reflogOutput
+		const entries = logOutput
 			.split("\n")
 			.filter((line) => line.trim().length > 0)
-			.map((line) => {
-				const [hash, selector, message, timestamp] = line.split("|");
+			.map((line, index) => {
+				const [hash, message, timestamp] = line.split("|");
 				return {
 					hash: hash || "",
-					selector: selector || "",
+					selector: `${index}`,
 					message: message || "",
 					timestamp: timestamp || "",
 				};
