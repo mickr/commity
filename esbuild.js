@@ -41,14 +41,14 @@ async function main() {
 	});
 
 	const webviewCtx = await esbuild.context({
-		entryPoints: ["src/webview/reflog.tsx"],
+		entryPoints: ["src/webview/reflog/index.tsx"],
 		bundle: true,
 		format: "iife",
 		minify: production,
 		sourcemap: !production,
 		sourcesContent: false,
 		platform: "browser",
-		outfile: "out/webview/reflog.js",
+		outfile: "out/webview/reflog/index.js",
 		logLevel: "silent",
 		loader: {
 			".module.css": "local-css",

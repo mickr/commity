@@ -139,10 +139,10 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 
 	private _getHtmlForWebview(webview: vscode.Webview): string {
 		const scriptUri = webview.asWebviewUri(
-			vscode.Uri.joinPath(this._extensionUri, "out", "webview", "reflog.js")
+			vscode.Uri.joinPath(this._extensionUri, "out", "webview", "reflog", "index.js")
 		);
 		const styleUri = webview.asWebviewUri(
-			vscode.Uri.joinPath(this._extensionUri, "out", "webview", "reflog.css")
+			vscode.Uri.joinPath(this._extensionUri, "out", "webview", "reflog", "index.css")
 		);
 
 		const nonce = getNonce();

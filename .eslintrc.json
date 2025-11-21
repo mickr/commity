@@ -38,6 +38,12 @@
 			"rules": {
 				"@typescript-eslint/no-var-requires": "off"
 			}
+		},
+		{
+			"files": ["src/webview/**/*.ts", "src/webview/**/*.tsx"],
+			"parserOptions": {
+				"project": "./src/webview/tsconfig.json"
+			}
 		}
 	]
 }

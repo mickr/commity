@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { FireworksProvider } from "../services/ai-providers/fireworks";
+import { FireworksProvider, FireworksError } from "../services/ai-providers/fireworks";
 import { getStagedDiff, getCurrentBranch, getCurrentAuthor } from "../services/git";
 import { readConfiguration } from "../services/config";
 import type { CommitMessageRequest, DiffEntry } from "../types/ai";
@@ -86,30 +86,30 @@ export const generateCommitMessage = async (
 				return;
 			}
 
-			if (error.message.includes("429") || error.message.toLowerCase().includes("rate limit")) {
-				vscode.window.showErrorMessage(
-					"Commity: Rate limit exceeded. Please try again in a moment."
-				);
-				return;
+			if (error instanceof FireworksError) {
+				if (error.status === 429) {
+					vscode.window.showErrorMessage(
+						"Commity: Rate limit exceeded. Please try again in a moment."
+					);
+					return;
+				}
+
+				if (error.status >= 500) {
+					vscode.window.showErrorMessage(
+						"Commity: Service temporarily unavailable. Please try again later."
+					);
+					return;
+				}
+
+				if ([400, 401, 403].includes(error.status)) {
+					vscode.window.showErrorMessage(
+						"Commity: Invalid request. Please check your configuration."
+					);
+					return;
+				}
 			}
 
-			if (error.message.includes("500") || error.message.includes("503")) {
-				vscode.window.showErrorMessage(
-					"Commity: Service temporarily unavailable. Please try again later."
-				);
-				return;
-			}
 
-			if (
-				error.message.includes("400") ||
-				error.message.includes("401") ||
-				error.message.includes("403")
-			) {
-				vscode.window.showErrorMessage(
-					"Commity: Invalid request. Please check your configuration."
-				);
-				return;
-			}
 		}
 
 		vscode.window.showErrorMessage(

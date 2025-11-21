@@ -25,6 +25,16 @@ const isFireworksSuccessResponse = (
 	);
 };
 
+export class FireworksError extends Error {
+	constructor(
+		public readonly status: number,
+		message: string,
+	) {
+		super(message);
+		this.name = "FireworksError";
+	}
+}
+
 export class FireworksProvider implements LLMProvider {
 	private readonly baseUrl: string;
 
@@ -52,7 +62,8 @@ export class FireworksProvider implements LLMProvider {
 			const error = (await response
 				.json()
 				.catch(() => null)) as FireworksErrorResponse | null;
-			throw new Error(
+			throw new FireworksError(
+				response.status,
 				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
 			);
 		}
@@ -85,7 +96,8 @@ export class FireworksProvider implements LLMProvider {
 			const error = (await response
 				.json()
 				.catch(() => null)) as FireworksErrorResponse | null;
-			throw new Error(
+			throw new FireworksError(
+				response.status,
 				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
 			);
 		}
@@ -121,7 +133,8 @@ export class FireworksProvider implements LLMProvider {
 			const error = (await response
 				.json()
 				.catch(() => null)) as FireworksErrorResponse | null;
-			throw new Error(
+			throw new FireworksError(
+				response.status,
 				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
 			);
 		}
