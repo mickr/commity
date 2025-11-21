@@ -58,6 +58,18 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		void this._updateReflog();
 	}
 
+	public focusUp() {
+		this._view?.webview.postMessage({ type: "key", key: "ArrowUp" });
+	}
+
+	public focusDown() {
+		this._view?.webview.postMessage({ type: "key", key: "ArrowDown" });
+	}
+
+	public selectEntry() {
+		this._view?.webview.postMessage({ type: "key", key: " " });
+	}
+
 	private async _updateReflog() {
 		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
 		const git = gitExtension?.getAPI(1);

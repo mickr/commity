@@ -18,7 +18,26 @@ export function activate(context: vscode.ExtensionContext) {
 		reflogProvider.refresh();
 	});
 
-	context.subscriptions.push(disposable, refreshReflogCommand, reflogView);
+	const focusUpCommand = vscode.commands.registerCommand("commity.reflog.focusUp", () => {
+		reflogProvider.focusUp();
+	});
+
+	const focusDownCommand = vscode.commands.registerCommand("commity.reflog.focusDown", () => {
+		reflogProvider.focusDown();
+	});
+
+	const selectEntryCommand = vscode.commands.registerCommand("commity.reflog.select", () => {
+		reflogProvider.selectEntry();
+	});
+
+	context.subscriptions.push(
+		disposable,
+		refreshReflogCommand,
+		reflogView,
+		focusUpCommand,
+		focusDownCommand,
+		selectEntryCommand
+	);
 }
 
 export function deactivate() {}

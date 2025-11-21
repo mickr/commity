@@ -43,6 +43,43 @@
 				"command": "commity.refreshReflog",
 				"title": "Refresh Reflog",
 				"icon": "$(refresh)"
+			},
+			{
+				"command": "commity.reflog.focusUp",
+				"title": "Focus Up",
+				"enablement": "view == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.focusDown",
+				"title": "Focus Down",
+				"enablement": "view == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.select",
+				"title": "Select Entry",
+				"enablement": "view == commity.reflogView"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "commity.reflog.focusUp",
+				"key": "up",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.focusDown",
+				"key": "down",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.select",
+				"key": "space",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.select",
+				"key": "enter",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
 			}
 		],
 		"menus": {

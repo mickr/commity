@@ -1,11 +1,14 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "../reflog.module.css";
 import ReflogEntryComponent, { type ReflogEntry } from "./reflog-item";
+import ContextMenu from "../components/context-menu";
+import { KeymapProvider } from "../components/keymap-provider";
 
 interface Message {
 	type: string;
 	entries?: ReflogEntry[];
+	key?: string;
 }
 
 interface VSCodeAPI {
@@ -20,13 +23,20 @@ function App() {
 	const [entries, setEntries] = useState<ReflogEntry[]>([]);
 	const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 	const [firstClickIndex, setFirstClickIndex] = useState<number | null>(null);
-	const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+	const [focusedIndex, setFocusedIndex] = useState<number>(0);
+	const listRef = useRef<HTMLDivElement>(null);
+	const appRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		const messageHandler = (event: MessageEvent<Message>) => {
 			const message = event.data;
 			if (message.type === "reflogData") {
 				setEntries(message.entries || []);
+				setFocusedIndex(0);
+				// Focus the app container so keyboard shortcuts work immediately
+				setTimeout(() => {
+					appRef.current?.focus();
+				}, 0);
 			}
 		};
 
@@ -40,6 +50,9 @@ function App() {
 
 	const handleSelectEntry = useCallback(
 		(clickedIndex: number, shiftKey: boolean, metaKey: boolean) => {
+			// Ensure focus stays in the webview
+			appRef.current?.focus();
+			setFocusedIndex(clickedIndex);
 			if (shiftKey && firstClickIndex !== null) {
 				const startIndex = Math.min(firstClickIndex, clickedIndex);
 				const endIndex = Math.max(firstClickIndex, clickedIndex);
@@ -93,15 +106,6 @@ function App() {
 		return true;
 	}, []);
 
-	const handleContextMenu = useCallback(
-		(_index: number, event: React.MouseEvent) => {
-			if (selectedIndices.size > 1) {
-				setContextMenu({ x: event.clientX, y: event.clientY });
-			}
-		},
-		[selectedIndices]
-	);
-
 	const handleSquash = useCallback(() => {
 		const selectedEntries = Array.from(selectedIndices)
 			.sort((a, b) => a - b)
@@ -112,41 +116,21 @@ function App() {
 			entries: selectedEntries,
 		});
 
-		setContextMenu(null);
 		setSelectedIndices(new Set());
 	}, [selectedIndices, entries]);
 
-	useEffect(() => {
-		if (contextMenu) {
-			const handleEscape = (e: KeyboardEvent) => {
-				if (e.key === "Escape") {
-					setContextMenu(null);
-				}
-			};
-
-			const handleClickOutside = (e: MouseEvent) => {
-				const target = e.target as HTMLElement;
-				if (!target.closest(`.${styles.contextMenu}`)) {
-					setContextMenu(null);
-				}
-			};
-
-			const timeoutId = setTimeout(() => {
-				window.addEventListener("mousedown", handleClickOutside);
-			}, 0);
-
-			window.addEventListener("keydown", handleEscape);
-
-			return () => {
-				clearTimeout(timeoutId);
-				window.removeEventListener("mousedown", handleClickOutside);
-				window.removeEventListener("keydown", handleEscape);
-			};
-		}
-	}, [contextMenu]);
-
 	return (
-		<div className={styles.app}>
+		<KeymapProvider
+			itemCount={entries.length}
+			focusedIndex={focusedIndex}
+			setFocusedIndex={setFocusedIndex}
+			onSelect={(index, { shift, meta }) => handleSelectEntry(index, shift, meta)}
+			className={styles.app}
+			ref={appRef}
+			tabIndex={0}
+			style={{ outline: "none" }}
+			onClick={() => appRef.current?.focus()}
+		>
 			<div className={styles.toolbar}>
 				<button className={styles.btn} onClick={handleRefresh}>
 					Refresh
@@ -156,27 +140,27 @@ function App() {
 				{entries.length === 0 ? (
 					<p className={styles.loading}>Loading reflog...</p>
 				) : (
-					<div className={styles.reflogList}>
+					<div className={styles.reflogList} ref={listRef}>
 						{entries.map((entry, index) => (
 							<ReflogEntryComponent
 								key={`${entry.hash}-${index}`}
 								entry={entry}
 								index={index}
 								isSelected={selectedIndices.has(index)}
+								isFocused={index === focusedIndex}
 								onSelect={handleSelectEntry}
-								onContextMenu={handleContextMenu}
 								onReset={handleReset}
 							/>
 						))}
 					</div>
 				)}
 			</div>
-			{contextMenu && (
-				<div
-					className={styles.contextMenu}
-					style={{ top: contextMenu.y, left: contextMenu.x }}
-					onClick={(e) => e.stopPropagation()}
-				>
+
+			<ContextMenu triggerRef={listRef}>
+				<>
+					{focusedIndex === 0 && (
+						<button className={styles.contextMenuItem}>Amend this commit</button>
+					)}
 					{isContiguous(selectedIndices) ? (
 						<button className={styles.contextMenuItem} onClick={handleSquash}>
 							Squash {selectedIndices.size} commits
@@ -186,9 +170,14 @@ function App() {
 							Squash only works on contiguous commits
 						</div>
 					)}
-				</div>
-			)}
-		</div>
+					{
+						<button className={styles.contextMenuItem}>
+							Reset to {entries[focusedIndex]?.hash?.substring(0, 7)}
+						</button>
+					}
+				</>
+			</ContextMenu>
+		</KeymapProvider>
 	);
 }
 

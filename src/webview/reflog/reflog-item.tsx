@@ -12,8 +12,8 @@ interface ReflogEntryProps {
 	entry: ReflogEntry;
 	index: number;
 	isSelected: boolean;
+	isFocused: boolean;
 	onSelect: (index: number, shiftKey: boolean, metaKey: boolean) => void;
-	onContextMenu: (index: number, event: React.MouseEvent) => void;
 	onReset: (entry: ReflogEntry) => void;
 }
 
@@ -47,8 +47,8 @@ function ReflogEntryComponent({
 	entry,
 	index,
 	isSelected,
+	isFocused,
 	onSelect,
-	onContextMenu,
 	onReset,
 }: ReflogEntryProps) {
 	const handleSelectionClick = useCallback(
@@ -60,12 +60,12 @@ function ReflogEntryComponent({
 	);
 
 	const handleContextMenu = useCallback(
-		(e: React.MouseEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			onContextMenu(index, e);
+		() => {
+			if (!isSelected) {
+				onSelect(index, false, false);
+			}
 		},
-		[index, onContextMenu]
+		[index, isSelected, onSelect]
 	);
 
 	const handleReset = useCallback(
@@ -78,7 +78,9 @@ function ReflogEntryComponent({
 
 	return (
 		<div
-			className={`${styles.reflogEntry} ${isSelected ? styles.selected : ""}`}
+			className={`${styles.reflogEntry} ${isSelected ? styles.selected : ""} ${
+				isFocused ? styles.focused : ""
+			}`}
 			onClick={handleSelectionClick}
 			onContextMenu={handleContextMenu}
 		>
