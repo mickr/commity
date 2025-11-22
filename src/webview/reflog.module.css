@@ -4,14 +4,6 @@
 	flex-direction: column;
 }
 
-.toolbar {
-	padding: 8px 12px;
-	border-bottom: 1px solid var(--vscode-panel-border);
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
 .btn {
 	background-color: var(--vscode-button-background);
 	color: var(--vscode-button-foreground);

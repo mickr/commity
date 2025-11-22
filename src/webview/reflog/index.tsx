@@ -44,10 +44,6 @@ function App() {
 		return () => window.removeEventListener("message", messageHandler);
 	}, []);
 
-	const handleRefresh = useCallback(() => {
-		vscode.postMessage({ type: "refresh" });
-	}, []);
-
 	const handleSelectEntry = useCallback(
 		(clickedIndex: number, shiftKey: boolean, metaKey: boolean) => {
 			// Ensure focus stays in the webview
@@ -84,14 +80,14 @@ function App() {
 			} else {
 				setFirstClickIndex(clickedIndex);
 				setSelectedIndices(new Set([clickedIndex]));
+				vscode.postMessage({
+					type: "selectEntry",
+					entry: entries[clickedIndex],
+				});
 			}
 		},
 		[entries, firstClickIndex, selectedIndices]
 	);
-
-	const handleReset = useCallback((entry: ReflogEntry) => {
-		vscode.postMessage({ type: "resetToEntry", entry });
-	}, []);
 
 	const isContiguous = useCallback((indices: Set<number>) => {
 		if (indices.size <= 1) {
@@ -131,11 +127,6 @@ function App() {
 			style={{ outline: "none" }}
 			onClick={() => appRef.current?.focus()}
 		>
-			<div className={styles.toolbar}>
-				<button className={styles.btn} onClick={handleRefresh}>
-					Refresh
-				</button>
-			</div>
 			<div className={styles.container}>
 				{entries.length === 0 ? (
 					<p className={styles.loading}>Loading reflog...</p>
@@ -149,7 +140,6 @@ function App() {
 								isSelected={selectedIndices.has(index)}
 								isFocused={index === focusedIndex}
 								onSelect={handleSelectEntry}
-								onReset={handleReset}
 							/>
 						))}
 					</div>
@@ -161,20 +151,16 @@ function App() {
 					{focusedIndex === 0 && (
 						<button className={styles.contextMenuItem}>Amend this commit</button>
 					)}
-					{isContiguous(selectedIndices) ? (
+					{isContiguous(selectedIndices) && selectedIndices.size > 1 && (
 						<button className={styles.contextMenuItem} onClick={handleSquash}>
 							Squash {selectedIndices.size} commits
 						</button>
-					) : (
-						<div className={styles.contextMenuDisabled}>
-							Squash only works on contiguous commits
-						</div>
 					)}
-					{
+					{focusedIndex !== 0 && (
 						<button className={styles.contextMenuItem}>
 							Reset to {entries[focusedIndex]?.hash?.substring(0, 7)}
 						</button>
-					}
+					)}
 				</>
 			</ContextMenu>
 		</KeymapProvider>

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { randomBytes } from "node:crypto";
-import { getReflogEntries, type ReflogEntry } from "../services/git";
+import type { Repository } from "../types/git";
+import { getActualCurrentBranch, getReflogEntries, type ReflogEntry } from "../services/git";
 
 class ReflogDiffProvider implements vscode.TextDocumentContentProvider {
 	private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
@@ -79,6 +80,12 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			return;
 		}
 
+		const primaryRepo = this._getPrimaryRepository(git.repositories);
+		if (primaryRepo && this._view) {
+			const branch = await getActualCurrentBranch(primaryRepo);
+			this._view.title = branch ? `Reflog (${branch})` : "Reflog";
+		}
+
 		const entries: ReflogEntry[] = [];
 		for (const repo of git.repositories) {
 			const repoEntries = await getReflogEntries(repo);
@@ -86,6 +93,18 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		this._view?.webview.postMessage({ type: "reflogData", entries });
+	}
+
+	private _getPrimaryRepository(repositories: Repository[]): Repository | undefined {
+		const activeEditor = vscode.window.activeTextEditor;
+		if (activeEditor) {
+			const activePath = activeEditor.document.uri.fsPath;
+			const match = repositories.find((repo) => activePath.startsWith(repo.rootUri.fsPath));
+			if (match) {
+				return match;
+			}
+		}
+		return repositories[0];
 	}
 
 	private async _handleMessage(message: { type: string; [key: string]: unknown }) {

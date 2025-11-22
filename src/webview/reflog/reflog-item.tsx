@@ -14,7 +14,6 @@ interface ReflogEntryProps {
 	isSelected: boolean;
 	isFocused: boolean;
 	onSelect: (index: number, shiftKey: boolean, metaKey: boolean) => void;
-	onReset: (entry: ReflogEntry) => void;
 }
 
 function formatTimestamp(timestamp: string): string {
@@ -43,14 +42,7 @@ function formatTimestamp(timestamp: string): string {
 	}
 }
 
-function ReflogEntryComponent({
-	entry,
-	index,
-	isSelected,
-	isFocused,
-	onSelect,
-	onReset,
-}: ReflogEntryProps) {
+function ReflogEntryComponent({ entry, index, isSelected, isFocused, onSelect }: ReflogEntryProps) {
 	const handleSelectionClick = useCallback(
 		(e: React.MouseEvent) => {
 			e.stopPropagation();
@@ -59,22 +51,11 @@ function ReflogEntryComponent({
 		[index, onSelect]
 	);
 
-	const handleContextMenu = useCallback(
-		() => {
-			if (!isSelected) {
-				onSelect(index, false, false);
-			}
-		},
-		[index, isSelected, onSelect]
-	);
-
-	const handleReset = useCallback(
-		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			onReset(entry);
-		},
-		[entry, onReset]
-	);
+	const handleContextMenu = useCallback(() => {
+		if (!isSelected) {
+			onSelect(index, false, false);
+		}
+	}, [index, isSelected, onSelect]);
 
 	return (
 		<div
@@ -91,11 +72,6 @@ function ReflogEntryComponent({
 					<span className={styles.entryTimestamp}>{formatTimestamp(entry.timestamp)}</span>
 				</div>
 				<div className={styles.entryMessage}>{entry.message}</div>
-			</div>
-			<div className={styles.entryActions}>
-				<button className={`${styles.btnSmall} ${styles.resetBtn}`} onClick={handleReset}>
-					Reset
-				</button>
 			</div>
 		</div>
 	);
