@@ -41,6 +41,7 @@ function App() {
 		};
 
 		window.addEventListener("message", messageHandler);
+		vscode.postMessage({ type: "webviewLoaded" });
 		return () => window.removeEventListener("message", messageHandler);
 	}, []);
 
@@ -76,6 +77,32 @@ function App() {
 					setFirstClickIndex(null);
 				} else if (!firstClickIndex) {
 					setFirstClickIndex(clickedIndex);
+				}
+
+				const selectedEntries = Array.from(newSelectedIndices)
+					.sort((a, b) => a - b)
+					.map((i) => entries[i]);
+
+				const contiguous = isContiguous(newSelectedIndices);
+
+				if (selectedEntries.length > 0) {
+					if (contiguous) {
+						vscode.postMessage({
+							type: "selectEntries",
+							entries: selectedEntries,
+						});
+					} else if (selectedEntries.length === 2) {
+						vscode.postMessage({
+							type: "compareEntries",
+							entries: selectedEntries,
+						});
+					} else {
+						// Fallback: just show the clicked entry
+						vscode.postMessage({
+							type: "selectEntry",
+							entry: entries[clickedIndex],
+						});
+					}
 				}
 			} else {
 				setFirstClickIndex(clickedIndex);

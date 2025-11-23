@@ -46,17 +46,15 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			localResourceRoots: [this._extensionUri],
 		};
 
-		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
 		webviewView.webview.onDidReceiveMessage(async (message) => {
-			await this._handleMessage(message);
+			await this.handleMessage(message);
 		});
 
-		void this._updateReflog();
+		webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
 	}
 
 	public refresh() {
-		void this._updateReflog();
+		void this.updateReflog();
 	}
 
 	public focusUp() {
@@ -71,7 +69,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		this._view?.webview.postMessage({ type: "key", key: " " });
 	}
 
-	private async _updateReflog() {
+	private async updateReflog() {
 		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
 		const git = gitExtension?.getAPI(1);
 
@@ -80,7 +78,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			return;
 		}
 
-		const primaryRepo = this._getPrimaryRepository(git.repositories);
+		const primaryRepo = this.getPrimaryRepository(git.repositories);
 		if (primaryRepo && this._view) {
 			const branch = await getActualCurrentBranch(primaryRepo);
 			this._view.title = branch ? `Reflog (${branch})` : "Reflog";
@@ -95,7 +93,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		this._view?.webview.postMessage({ type: "reflogData", entries });
 	}
 
-	private _getPrimaryRepository(repositories: Repository[]): Repository | undefined {
+	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {
 		const activeEditor = vscode.window.activeTextEditor;
 		if (activeEditor) {
 			const activePath = activeEditor.document.uri.fsPath;
@@ -107,21 +105,28 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		return repositories[0];
 	}
 
-	private async _handleMessage(message: { type: string; [key: string]: unknown }) {
+	private async handleMessage(message: { type: string; [key: string]: unknown }) {
 		switch (message.type) {
+			case "webviewLoaded":
 			case "refresh":
-				void this._updateReflog();
+				void this.updateReflog();
 				break;
 			case "selectEntry":
-				void this._handleSelectEntry(message.entry as ReflogEntry);
+				void this.handleSelectEntry(message.entry as ReflogEntry);
+				break;
+			case "selectEntries":
+				void this.handleSelectEntries(message.entries as ReflogEntry[]);
+				break;
+			case "compareEntries":
+				void this.handleCompareEntries(message.entries as ReflogEntry[]);
 				break;
 			case "resetToEntry":
-				void this._handleResetToEntry(message.entry as ReflogEntry);
+				void this.handleResetToEntry(message.entry as ReflogEntry);
 				break;
 		}
 	}
 
-	private async _handleSelectEntry(entry: ReflogEntry) {
+	private async handleSelectEntry(entry: ReflogEntry) {
 		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
 		const git = gitExtension?.getAPI(1);
 
@@ -156,7 +161,100 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	private async _handleResetToEntry(entry: ReflogEntry) {
+	private async handleSelectEntries(entries: ReflogEntry[]) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0 || entries.length === 0) {
+			return;
+		}
+
+		const repository = git.repositories[0];
+		const cwd = repository.rootUri.fsPath;
+
+		// entries[0] is the newest, entries[length-1] is the oldest
+		const newest = entries[0];
+		const oldest = entries[entries.length - 1];
+
+		try {
+			const { execFile } = await import("node:child_process");
+			const { promisify } = await import("node:util");
+			const execFileAsync = promisify(execFile);
+
+			// Get diff between parent of oldest commit and the newest commit
+			// This shows the combined changes of all selected commits
+			const { stdout: diff } = await execFileAsync("git", ["diff", `${oldest.hash}^..${newest.hash}`], {
+				cwd,
+				maxBuffer: 10 * 1024 * 1024,
+			});
+
+			const content = `Reflog Range: ${oldest.hash.substring(0, 7)}...${newest.hash.substring(
+				0,
+				7
+			)}\n\n${diff}`;
+			const uri = vscode.Uri.parse(
+				`commity-reflog:${oldest.hash.substring(0, 7)}-${newest.hash.substring(0, 7)}.diff`
+			);
+
+			this._diffProvider.updateContent(uri, content);
+
+			await vscode.window.showTextDocument(uri, {
+				preview: true,
+				preserveFocus: true,
+			});
+		} catch (error) {
+			console.error("Failed to show reflog range diff:", error);
+			vscode.window.showErrorMessage("Failed to show diff for selected range");
+		}
+	}
+
+	private async handleCompareEntries(entries: ReflogEntry[]) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0 || entries.length !== 2) {
+			return;
+		}
+
+		const repository = git.repositories[0];
+		const cwd = repository.rootUri.fsPath;
+
+		// entries[0] is the newest, entries[1] is the oldest (based on index sorting from frontend)
+		const newest = entries[0];
+		const oldest = entries[1];
+
+		try {
+			const { execFile } = await import("node:child_process");
+			const { promisify } = await import("node:util");
+			const execFileAsync = promisify(execFile);
+
+			// Compare oldest to newest (what changed between them)
+			const { stdout: diff } = await execFileAsync("git", ["diff", oldest.hash, newest.hash], {
+				cwd,
+				maxBuffer: 10 * 1024 * 1024,
+			});
+
+			const content = `Reflog Compare: ${oldest.hash.substring(0, 7)} ↔ ${newest.hash.substring(
+				0,
+				7
+			)}\n\n${diff}`;
+			const uri = vscode.Uri.parse(
+				`commity-reflog:${oldest.hash.substring(0, 7)}-vs-${newest.hash.substring(0, 7)}.diff`
+			);
+
+			this._diffProvider.updateContent(uri, content);
+
+			await vscode.window.showTextDocument(uri, {
+				preview: true,
+				preserveFocus: true,
+			});
+		} catch (error) {
+			console.error("Failed to show reflog comparison:", error);
+			vscode.window.showErrorMessage("Failed to show comparison diff");
+		}
+	}
+
+	private async handleResetToEntry(entry: ReflogEntry) {
 		const confirm = await vscode.window.showWarningMessage(
 			`Reset to ${entry.hash}?`,
 			"Reset",
@@ -168,7 +266,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	private _getHtmlForWebview(webview: vscode.Webview): string {
+	private getHtmlForWebview(webview: vscode.Webview): string {
 		const scriptUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(this._extensionUri, "out", "webview", "reflog", "index.js")
 		);
