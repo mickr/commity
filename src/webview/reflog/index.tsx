@@ -185,14 +185,22 @@ function App() {
 		[expandedFiles]
 	);
 
-	const handleToggleFiles = useCallback(() => {
-		if (expandedFiles) {
-			setExpandedFiles({
-				...expandedFiles,
-				isCollapsed: !expandedFiles.isCollapsed,
-			});
-		}
-	}, [expandedFiles]);
+	const handleToggleFiles = useCallback(
+		(entry: ReflogEntry) => {
+			if (expandedFiles && expandedFiles.hash === entry.hash) {
+				setExpandedFiles({
+					...expandedFiles,
+					isCollapsed: !expandedFiles.isCollapsed,
+				});
+			} else {
+				vscode.postMessage({
+					type: "requestCommitFiles",
+					entry,
+				});
+			}
+		},
+		[expandedFiles]
+	);
 
 	return (
 		<KeymapProvider
@@ -224,7 +232,7 @@ function App() {
 									expandedFiles?.hash === entry.hash ? expandedFiles.isCollapsed : undefined
 								}
 								onOpenFile={handleOpenFileDiff}
-								onToggleFiles={handleToggleFiles}
+								onToggleFiles={() => handleToggleFiles(entry)}
 							/>
 						))}
 					</div>

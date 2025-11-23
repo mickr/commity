@@ -88,7 +88,10 @@ function ReflogEntryComponent({
 		}
 	}, [index, isSelected, onSelect]);
 
-	const hasFiles = files && files.length > 0;
+	const hasFiles =
+		(entry.filesChanged !== undefined && entry.filesChanged > 0) || (files && files.length > 0);
+
+	const isExpanded = isCollapsed === false;
 
 	return (
 		<div
@@ -102,7 +105,7 @@ function ReflogEntryComponent({
 				<div className={styles.entryHeader}>
 					{hasFiles && (
 						<span
-							className={`${styles.toggleIcon} ${isCollapsed ? styles.collapsed : ""}`}
+							className={`${styles.toggleIcon} ${isExpanded ? "" : styles.collapsed}`}
 							onClick={handleToggleClick}
 						>
 							▼
@@ -118,10 +121,10 @@ function ReflogEntryComponent({
 					<span className={styles.entryTimestamp}>{formatTimestamp(entry.timestamp)}</span>
 				</div>
 				<div className={styles.entryMessage}>{entry.message}</div>
-				{hasFiles && !isCollapsed && (
+				{files && !isCollapsed && (
 					<div className={styles.fileList}>
 						<div className={styles.fileListHeader}>Changed Files:</div>
-						{files.map((file) => (
+						{files?.map((file) => (
 							<div
 								key={file}
 								className={styles.fileItem}

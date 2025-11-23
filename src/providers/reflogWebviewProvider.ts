@@ -121,6 +121,9 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			case "compareEntries":
 				void this.handleCompareEntries(message.entries as ReflogEntry[]);
 				break;
+			case "requestCommitFiles":
+				void this.handleRequestCommitFiles(message.entry as ReflogEntry);
+				break;
 			case "openDiff":
 				void this.handleOpenDiff(message.file as string, message.hash as string, message.parentHash as string);
 				break;
@@ -148,6 +151,46 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		} catch (error) {
 			console.error("Failed to open diff:", error);
 			vscode.window.showErrorMessage(`Failed to open diff for ${file}`);
+		}
+	}
+
+	private async handleRequestCommitFiles(entry: ReflogEntry) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0) {
+			return;
+		}
+
+		const repository = git.repositories[0];
+		const cwd = repository.rootUri.fsPath;
+
+		try {
+			const { execFile } = await import("node:child_process");
+			const { promisify } = await import("node:util");
+			const execFileAsync = promisify(execFile);
+
+			const { stdout: nameStatus } = await execFileAsync(
+				"git",
+				["show", "--name-only", "--format=", entry.hash],
+				{
+					cwd,
+					maxBuffer: 10 * 1024 * 1024,
+				}
+			);
+
+			const files = nameStatus
+				.split("\n")
+				.map((s) => s.trim())
+				.filter((s) => s.length > 0);
+
+			this._view?.webview.postMessage({
+				type: "showCommitFiles",
+				files,
+				hash: entry.hash,
+			});
+		} catch (error) {
+			console.error("Failed to request commit files:", error);
 		}
 	}
 
@@ -193,11 +236,20 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 					preserveFocus: true,
 				});
 			} else {
-				// If multiple files, send them to the webview to display a list
-				this._view?.webview.postMessage({
-					type: "showCommitFiles",
-					files,
-					hash: entry.hash,
+				// Show unified diff for the whole commit
+				const { stdout: diff } = await execFileAsync("git", ["show", entry.hash], {
+					cwd,
+					maxBuffer: 10 * 1024 * 1024,
+				});
+
+				const content = diff;
+				const uri = vscode.Uri.parse(`commity-reflog:${entry.hash}.diff`);
+
+				this._diffProvider.updateContent(uri, content);
+
+				await vscode.window.showTextDocument(uri, {
+					preview: true,
+					preserveFocus: true,
 				});
 			}
 		} catch (error) {
