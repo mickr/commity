@@ -294,32 +294,52 @@ export async function performRebaseSquash({
 
 export interface ReflogEntry {
 	hash: string;
-	selector: string;
+	// selector: string; // Removed selector
 	message: string;
 	timestamp: string;
+	filesChanged?: number; // Added filesChanged count
 }
 
 export async function getReflogEntries(repository: Repository): Promise<ReflogEntry[]> {
 	const cwd = repository.rootUri.fsPath;
 
 	try {
+		// Added --numstat to get changed files count
 		const logOutput = await runGit(
-			["log", "--format=%H|%s|%ci", "-n", "100"],
+			["log", "--format=BEGIN_COMMIT|%H|%s|%ci", "--numstat", "-n", "100"],
 			cwd
 		);
 
-		const entries = logOutput
-			.split("\n")
-			.filter((line) => line.trim().length > 0)
-			.map((line, index) => {
-				const [hash, message, timestamp] = line.split("|");
-				return {
+		const entries: ReflogEntry[] = [];
+		const lines = logOutput.split("\n");
+		let currentEntry: Partial<ReflogEntry> | null = null;
+		let filesCount = 0;
+
+		for (const line of lines) {
+			if (line.startsWith("BEGIN_COMMIT|")) {
+				if (currentEntry) {
+					currentEntry.filesChanged = filesCount;
+					entries.push(currentEntry as ReflogEntry);
+				}
+				const [_, hash, message, timestamp] = line.split("|");
+				currentEntry = {
 					hash: hash || "",
-					selector: `${index}`,
 					message: message || "",
 					timestamp: timestamp || "",
 				};
-			});
+				filesCount = 0;
+			} else if (line.trim().length > 0 && currentEntry) {
+				// numstat lines look like: "1       2       path/to/file"
+				// We just want to count them
+				filesCount++;
+			}
+		}
+
+		// Push the last entry
+		if (currentEntry) {
+			currentEntry.filesChanged = filesCount;
+			entries.push(currentEntry as ReflogEntry);
+		}
 
 		return entries;
 	} catch (error) {

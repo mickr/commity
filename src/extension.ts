@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { generateCommitMessage } from "./commands/generateCommitMessage";
 import { ReflogWebviewProvider } from "./providers/reflogWebviewProvider";
+import { GitContentProvider } from "./providers/gitContentProvider";
 
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand(
@@ -13,6 +14,8 @@ export function activate(context: vscode.ExtensionContext) {
 		ReflogWebviewProvider.viewType,
 		reflogProvider
 	);
+
+	const gitContentProvider = new GitContentProvider(context);
 
 	const refreshReflogCommand = vscode.commands.registerCommand("commity.refreshReflog", () => {
 		reflogProvider.refresh();
@@ -31,6 +34,10 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(
+		vscode.workspace.registerTextDocumentContentProvider(
+			GitContentProvider.scheme,
+			gitContentProvider
+		),
 		disposable,
 		refreshReflogCommand,
 		reflogView,

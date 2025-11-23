@@ -24,19 +24,33 @@ function App() {
 	const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 	const [firstClickIndex, setFirstClickIndex] = useState<number | null>(null);
 	const [focusedIndex, setFocusedIndex] = useState<number>(0);
+	const [expandedFiles, setExpandedFiles] = useState<{
+		hash: string;
+		files: string[];
+		parentHash?: string;
+		isCollapsed?: boolean;
+	} | null>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const appRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		const messageHandler = (event: MessageEvent<Message>) => {
+		const messageHandler = (event: MessageEvent<Message | any>) => {
 			const message = event.data;
 			if (message.type === "reflogData") {
 				setEntries(message.entries || []);
 				setFocusedIndex(0);
-				// Focus the app container so keyboard shortcuts work immediately
-				setTimeout(() => {
+				setExpandedFiles(null);
+
+				requestAnimationFrame(() => {
 					appRef.current?.focus();
-				}, 0);
+				});
+			} else if (message.type === "showCommitFiles") {
+				setExpandedFiles({
+					hash: message.hash,
+					files: message.files,
+					parentHash: message.parentHash,
+					isCollapsed: message.isCollapsed ?? false,
+				});
 			}
 		};
 
@@ -50,6 +64,7 @@ function App() {
 			// Ensure focus stays in the webview
 			appRef.current?.focus();
 			setFocusedIndex(clickedIndex);
+			setExpandedFiles(null); // Clear expanded files on new selection
 			if (shiftKey && firstClickIndex !== null) {
 				const startIndex = Math.min(firstClickIndex, clickedIndex);
 				const endIndex = Math.max(firstClickIndex, clickedIndex);
@@ -71,6 +86,20 @@ function App() {
 				} else {
 					newSelectedIndices.add(clickedIndex);
 				}
+
+				// Check if we have > 2 items
+				if (newSelectedIndices.size > 2) {
+					const contiguous = isContiguous(newSelectedIndices);
+					if (!contiguous) {
+						// If not contiguous, restrict to max 2 items (for comparison)
+						// Keep the newly clicked one and the most recently focused one (prior to this click)
+						// Actually, simpler UX: Keep the clicked one and the one that was focused before
+						newSelectedIndices.clear();
+						newSelectedIndices.add(focusedIndex);
+						newSelectedIndices.add(clickedIndex);
+					}
+				}
+
 				setSelectedIndices(newSelectedIndices);
 
 				if (newSelectedIndices.size === 0) {
@@ -97,7 +126,7 @@ function App() {
 							entries: selectedEntries,
 						});
 					} else {
-						// Fallback: just show the clicked entry
+						// Should not happen with the restriction above, but good fallback
 						vscode.postMessage({
 							type: "selectEntry",
 							entry: entries[clickedIndex],
@@ -142,6 +171,29 @@ function App() {
 		setSelectedIndices(new Set());
 	}, [selectedIndices, entries]);
 
+	const handleOpenFileDiff = useCallback(
+		(file: string) => {
+			if (expandedFiles) {
+				vscode.postMessage({
+					type: "openDiff",
+					file,
+					hash: expandedFiles.hash,
+					parentHash: expandedFiles.parentHash,
+				});
+			}
+		},
+		[expandedFiles]
+	);
+
+	const handleToggleFiles = useCallback(() => {
+		if (expandedFiles) {
+			setExpandedFiles({
+				...expandedFiles,
+				isCollapsed: !expandedFiles.isCollapsed,
+			});
+		}
+	}, [expandedFiles]);
+
 	return (
 		<KeymapProvider
 			itemCount={entries.length}
@@ -167,6 +219,12 @@ function App() {
 								isSelected={selectedIndices.has(index)}
 								isFocused={index === focusedIndex}
 								onSelect={handleSelectEntry}
+								files={expandedFiles?.hash === entry.hash ? expandedFiles.files : undefined}
+								isCollapsed={
+									expandedFiles?.hash === entry.hash ? expandedFiles.isCollapsed : undefined
+								}
+								onOpenFile={handleOpenFileDiff}
+								onToggleFiles={handleToggleFiles}
 							/>
 						))}
 					</div>

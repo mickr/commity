@@ -94,6 +94,27 @@
 	flex-wrap: wrap;
 }
 
+.toggleIcon {
+	font-size: 10px;
+	width: 12px;
+	height: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	color: var(--vscode-icon-foreground);
+	transition: transform 0.1s;
+	margin-right: -4px;
+}
+
+.toggleIcon:hover {
+	color: var(--vscode-foreground);
+}
+
+.toggleIcon.collapsed {
+	transform: rotate(-90deg);
+}
+
 .entryHash {
 	font-family: var(--vscode-editor-font-family);
 	font-size: 12px;
@@ -173,4 +194,44 @@
 	color: var(--vscode-disabledForeground);
 	font-size: 13px;
 	font-style: italic;
+}
+
+.fileList {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--vscode-panel-border);
+}
+
+.fileListHeader {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--vscode-descriptionForeground);
+	margin-bottom: 4px;
+	text-transform: uppercase;
+}
+
+.fileItem {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 0;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	cursor: pointer;
+}
+
+.fileItem:hover {
+	color: var(--vscode-textLink-activeForeground);
+	text-decoration: underline;
+}
+
+.fileIcon {
+	font-size: 12px;
+	opacity: 0.8;
+}
+
+.fileName {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }

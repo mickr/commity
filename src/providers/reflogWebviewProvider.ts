@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { randomBytes } from "node:crypto";
 import type { Repository } from "../types/git";
 import { getActualCurrentBranch, getReflogEntries, type ReflogEntry } from "../services/git";
+import { GitContentProvider } from "./gitContentProvider";
 
 class ReflogDiffProvider implements vscode.TextDocumentContentProvider {
 	private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
@@ -120,9 +121,33 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			case "compareEntries":
 				void this.handleCompareEntries(message.entries as ReflogEntry[]);
 				break;
+			case "openDiff":
+				void this.handleOpenDiff(message.file as string, message.hash as string, message.parentHash as string);
+				break;
 			case "resetToEntry":
 				void this.handleResetToEntry(message.entry as ReflogEntry);
 				break;
+		}
+	}
+
+	private async handleOpenDiff(file: string, hash: string, parentHash?: string) {
+		try {
+			const leftHash = parentHash || `${hash}^`;
+			const rightHash = hash;
+			const shortLeft = leftHash.substring(0, 7);
+			const shortRight = rightHash.substring(0, 7);
+
+			const leftUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${leftHash}/${file}`);
+			const rightUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${rightHash}/${file}`);
+			const title = `${file} (${shortLeft} ↔ ${shortRight})`;
+
+			await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
+				preview: true,
+				preserveFocus: true,
+			});
+		} catch (error) {
+			console.error("Failed to open diff:", error);
+			vscode.window.showErrorMessage(`Failed to open diff for ${file}`);
 		}
 	}
 
@@ -142,20 +167,39 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			const { promisify } = await import("node:util");
 			const execFileAsync = promisify(execFile);
 
-			const { stdout: diff } = await execFileAsync("git", ["show", "--format=", entry.hash], {
-				cwd,
-				maxBuffer: 10 * 1024 * 1024,
-			});
+			// Check if only one file changed in this commit
+			const { stdout: nameStatus } = await execFileAsync(
+				"git",
+				["show", "--name-only", "--format=", entry.hash],
+				{
+					cwd,
+					maxBuffer: 10 * 1024 * 1024,
+				}
+			);
 
-			const content = `Reflog: ${entry.selector} - ${entry.message}\nCommit: ${entry.hash}\n\n${diff}`;
-			const uri = vscode.Uri.parse(`commity-reflog:${entry.hash}.diff`);
+			const files = nameStatus
+				.split("\n")
+				.map((s) => s.trim())
+				.filter((s) => s.length > 0);
 
-			this._diffProvider.updateContent(uri, content);
+			if (files.length === 1) {
+				const file = files[0];
+				const leftUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${entry.hash}^/${file}`);
+				const rightUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${entry.hash}/${file}`);
+				const title = `${file} (${entry.hash.substring(0, 7)})`;
 
-			await vscode.window.showTextDocument(uri, {
-				preview: true,
-				preserveFocus: true,
-			});
+				await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
+					preview: true,
+					preserveFocus: true,
+				});
+			} else {
+				// If multiple files, send them to the webview to display a list
+				this._view?.webview.postMessage({
+					type: "showCommitFiles",
+					files,
+					hash: entry.hash,
+				});
+			}
 		} catch (error) {
 			console.error("Failed to show reflog diff:", error);
 		}
@@ -181,27 +225,58 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			const { promisify } = await import("node:util");
 			const execFileAsync = promisify(execFile);
 
-			// Get diff between parent of oldest commit and the newest commit
-			// This shows the combined changes of all selected commits
-			const { stdout: diff } = await execFileAsync("git", ["diff", `${oldest.hash}^..${newest.hash}`], {
-				cwd,
-				maxBuffer: 10 * 1024 * 1024,
-			});
-
-			const content = `Reflog Range: ${oldest.hash.substring(0, 7)}...${newest.hash.substring(
-				0,
-				7
-			)}\n\n${diff}`;
-			const uri = vscode.Uri.parse(
-				`commity-reflog:${oldest.hash.substring(0, 7)}-${newest.hash.substring(0, 7)}.diff`
+			// Check if only one file changed in this range
+			const { stdout: nameStatus } = await execFileAsync(
+				"git",
+				["diff", "--name-only", `${oldest.hash}^..${newest.hash}`],
+				{
+					cwd,
+					maxBuffer: 10 * 1024 * 1024,
+				}
 			);
 
-			this._diffProvider.updateContent(uri, content);
+			const files = nameStatus
+				.split("\n")
+				.map((s) => s.trim())
+				.filter((s) => s.length > 0);
 
-			await vscode.window.showTextDocument(uri, {
-				preview: true,
-				preserveFocus: true,
-			});
+			if (files.length === 1) {
+				const file = files[0];
+				const leftUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${oldest.hash}^/${file}`);
+				const rightUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${newest.hash}/${file}`);
+				const title = `${file} (${oldest.hash.substring(0, 7)}...${newest.hash.substring(0, 7)})`;
+
+				await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
+					preview: true,
+					preserveFocus: true,
+				});
+			} else {
+				// For ranges with multiple files, show the unified diff instead of the file list
+				// This is often more useful for reviewing a sequence of commits
+				const { stdout: diff } = await execFileAsync(
+					"git",
+					["diff", `${oldest.hash}^..${newest.hash}`],
+					{
+						cwd,
+						maxBuffer: 10 * 1024 * 1024,
+					}
+				);
+
+				const content = `Reflog Range: ${oldest.hash.substring(0, 7)}...${newest.hash.substring(
+					0,
+					7
+				)}\n\n${diff}`;
+				const uri = vscode.Uri.parse(
+					`commity-reflog:${oldest.hash.substring(0, 7)}-${newest.hash.substring(0, 7)}.diff`
+				);
+
+				this._diffProvider.updateContent(uri, content);
+
+				await vscode.window.showTextDocument(uri, {
+					preview: true,
+					preserveFocus: true,
+				});
+			}
 		} catch (error) {
 			console.error("Failed to show reflog range diff:", error);
 			vscode.window.showErrorMessage("Failed to show diff for selected range");
@@ -228,26 +303,53 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			const { promisify } = await import("node:util");
 			const execFileAsync = promisify(execFile);
 
-			// Compare oldest to newest (what changed between them)
-			const { stdout: diff } = await execFileAsync("git", ["diff", oldest.hash, newest.hash], {
-				cwd,
-				maxBuffer: 10 * 1024 * 1024,
-			});
-
-			const content = `Reflog Compare: ${oldest.hash.substring(0, 7)} ↔ ${newest.hash.substring(
-				0,
-				7
-			)}\n\n${diff}`;
-			const uri = vscode.Uri.parse(
-				`commity-reflog:${oldest.hash.substring(0, 7)}-vs-${newest.hash.substring(0, 7)}.diff`
+			// Check if only one file changed
+			const { stdout: nameStatus } = await execFileAsync(
+				"git",
+				["diff", "--name-only", oldest.hash, newest.hash],
+				{
+					cwd,
+					maxBuffer: 10 * 1024 * 1024,
+				}
 			);
 
-			this._diffProvider.updateContent(uri, content);
+			const files = nameStatus
+				.split("\n")
+				.map((s) => s.trim())
+				.filter((s) => s.length > 0);
 
-			await vscode.window.showTextDocument(uri, {
-				preview: true,
-				preserveFocus: true,
-			});
+			if (files.length === 1) {
+				const file = files[0];
+				const leftUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${oldest.hash}/${file}`);
+				const rightUri = vscode.Uri.parse(`${GitContentProvider.scheme}://${newest.hash}/${file}`);
+				const title = `${file} (${oldest.hash.substring(0, 7)} ↔ ${newest.hash.substring(0, 7)})`;
+
+				await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
+					preview: true,
+					preserveFocus: true,
+				});
+			} else {
+				// Compare oldest to newest (what changed between them)
+				const { stdout: diff } = await execFileAsync("git", ["diff", oldest.hash, newest.hash], {
+					cwd,
+					maxBuffer: 10 * 1024 * 1024,
+				});
+
+				const content = `Reflog Compare: ${oldest.hash.substring(0, 7)} ↔ ${newest.hash.substring(
+					0,
+					7
+				)}\n\n${diff}`;
+				const uri = vscode.Uri.parse(
+					`commity-reflog:${oldest.hash.substring(0, 7)}-vs-${newest.hash.substring(0, 7)}.diff`
+				);
+
+				this._diffProvider.updateContent(uri, content);
+
+				await vscode.window.showTextDocument(uri, {
+					preview: true,
+					preserveFocus: true,
+				});
+			}
 		} catch (error) {
 			console.error("Failed to show reflog comparison:", error);
 			vscode.window.showErrorMessage("Failed to show comparison diff");

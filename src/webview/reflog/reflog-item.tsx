@@ -3,9 +3,10 @@ import styles from "../reflog.module.css";
 
 export interface ReflogEntry {
 	hash: string;
-	selector: string;
+	// selector: string;
 	message: string;
 	timestamp: string;
+	filesChanged?: number;
 }
 
 interface ReflogEntryProps {
@@ -14,6 +15,10 @@ interface ReflogEntryProps {
 	isSelected: boolean;
 	isFocused: boolean;
 	onSelect: (index: number, shiftKey: boolean, metaKey: boolean) => void;
+	files?: string[];
+	onOpenFile?: (file: string) => void;
+	isCollapsed?: boolean;
+	onToggleFiles?: () => void;
 }
 
 function formatTimestamp(timestamp: string): string {
@@ -42,7 +47,17 @@ function formatTimestamp(timestamp: string): string {
 	}
 }
 
-function ReflogEntryComponent({ entry, index, isSelected, isFocused, onSelect }: ReflogEntryProps) {
+function ReflogEntryComponent({
+	entry,
+	index,
+	isSelected,
+	isFocused,
+	onSelect,
+	files,
+	onOpenFile,
+	isCollapsed,
+	onToggleFiles,
+}: ReflogEntryProps) {
 	const handleSelectionClick = useCallback(
 		(e: React.MouseEvent) => {
 			e.stopPropagation();
@@ -51,11 +66,29 @@ function ReflogEntryComponent({ entry, index, isSelected, isFocused, onSelect }:
 		[index, onSelect]
 	);
 
+	const handleFileClick = useCallback(
+		(e: React.MouseEvent, file: string) => {
+			e.stopPropagation();
+			onOpenFile?.(file);
+		},
+		[onOpenFile]
+	);
+
+	const handleToggleClick = useCallback(
+		(e: React.MouseEvent) => {
+			e.stopPropagation();
+			onToggleFiles?.();
+		},
+		[onToggleFiles]
+	);
+
 	const handleContextMenu = useCallback(() => {
 		if (!isSelected) {
 			onSelect(index, false, false);
 		}
 	}, [index, isSelected, onSelect]);
+
+	const hasFiles = files && files.length > 0;
 
 	return (
 		<div
@@ -67,11 +100,40 @@ function ReflogEntryComponent({ entry, index, isSelected, isFocused, onSelect }:
 		>
 			<div className={styles.entryContent}>
 				<div className={styles.entryHeader}>
+					{hasFiles && (
+						<span
+							className={`${styles.toggleIcon} ${isCollapsed ? styles.collapsed : ""}`}
+							onClick={handleToggleClick}
+						>
+							▼
+						</span>
+					)}
 					<span className={styles.entryHash}>{entry.hash.substring(0, 7)}</span>
-					<span className={styles.entrySelector}>{entry.selector}</span>
+					{entry.filesChanged !== undefined && (
+						<span className={styles.entrySelector} title={`${entry.filesChanged} files changed`}>
+							{entry.filesChanged} file{entry.filesChanged !== 1 ? "s" : ""}
+						</span>
+					)}
+					{/* <span className={styles.entrySelector}>{entry.selector}</span> */}
 					<span className={styles.entryTimestamp}>{formatTimestamp(entry.timestamp)}</span>
 				</div>
 				<div className={styles.entryMessage}>{entry.message}</div>
+				{hasFiles && !isCollapsed && (
+					<div className={styles.fileList}>
+						<div className={styles.fileListHeader}>Changed Files:</div>
+						{files.map((file) => (
+							<div
+								key={file}
+								className={styles.fileItem}
+								onClick={(e) => handleFileClick(e, file)}
+								title={`Open diff for ${file}`}
+							>
+								<span className={styles.fileIcon}>📄</span>
+								<span className={styles.fileName}>{file}</span>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);
