@@ -97,7 +97,7 @@ function ReflogEntryComponent({
 		<div
 			className={`${styles.reflogEntry} ${isSelected ? styles.selected : ""} ${
 				isFocused ? styles.focused : ""
-			}`}
+			} ${isExpanded ? styles.glowing : ""}`}
 			onClick={handleSelectionClick}
 			onContextMenu={handleContextMenu}
 		>
@@ -113,7 +113,12 @@ function ReflogEntryComponent({
 					)}
 					<span className={styles.entryHash}>{entry.hash.substring(0, 7)}</span>
 					{entry.filesChanged !== undefined && (
-						<span className={styles.entrySelector} title={`${entry.filesChanged} files changed`}>
+						<span
+							className={styles.entrySelector}
+							title={`${entry.filesChanged} files changed`}
+							onClick={handleToggleClick}
+							style={{ cursor: "pointer" }}
+						>
 							{entry.filesChanged} file{entry.filesChanged !== 1 ? "s" : ""}
 						</span>
 					)}
@@ -122,7 +127,7 @@ function ReflogEntryComponent({
 				</div>
 				<div className={styles.entryMessage}>{entry.message}</div>
 				{files && !isCollapsed && (
-					<div className={styles.fileList}>
+					<div className={`${styles.fileList} ${styles.glowing}`}>
 						<div className={styles.fileListHeader}>Changed Files:</div>
 						{files?.map((file) => (
 							<div

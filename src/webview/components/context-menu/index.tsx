@@ -1,4 +1,12 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, {
+	useState,
+	useEffect,
+	useRef,
+	useLayoutEffect,
+	useCallback,
+	useContext,
+	createContext,
+} from "react";
 import styles from "../../reflog.module.css";
 
 interface ContextMenuProps {
@@ -7,9 +15,44 @@ interface ContextMenuProps {
 	triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
+interface ContextMenuContextValue {
+	isOpen: boolean;
+	closeMenu: () => void;
+}
+
+const ContextMenuContext = createContext<ContextMenuContextValue>({
+	isOpen: false,
+	closeMenu: () => {},
+});
+
+export function useContextMenu(): ContextMenuContextValue {
+	return useContext(ContextMenuContext);
+}
+
+type ContextMenuItemProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+export function ContextMenuItem({
+	onClick,
+	type = "button",
+	...rest
+}: ContextMenuItemProps): React.ReactElement {
+	const { closeMenu } = useContextMenu();
+
+	const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		closeMenu();
+		onClick?.(event);
+	};
+
+	return <button {...rest} type={type} onClick={handleClick} />;
+}
+
 export default function ContextMenu({ children, onClose, triggerRef }: ContextMenuProps) {
 	const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
+	const closeMenu = useCallback(() => {
+		setPosition(null);
+		onClose?.();
+	}, [onClose]);
 
 	useEffect(() => {
 		const handleContextMenu = (event: MouseEvent) => {
@@ -34,16 +77,14 @@ export default function ContextMenu({ children, onClose, triggerRef }: ContextMe
 		if (position) {
 			const handleEscape = (e: KeyboardEvent) => {
 				if (e.key === "Escape") {
-					setPosition(null);
-					onClose?.();
+					closeMenu();
 				}
 			};
 
 			const handleClickOutside = (e: MouseEvent) => {
 				const target = e.target as HTMLElement;
 				if (menuRef.current && !menuRef.current.contains(target)) {
-					setPosition(null);
-					onClose?.();
+					closeMenu();
 				}
 			};
 
@@ -59,7 +100,7 @@ export default function ContextMenu({ children, onClose, triggerRef }: ContextMe
 				window.removeEventListener("keydown", handleEscape);
 			};
 		}
-	}, [position, onClose]);
+	}, [position, closeMenu]);
 
 	useLayoutEffect(() => {
 		if (position && menuRef.current) {
@@ -93,12 +134,19 @@ export default function ContextMenu({ children, onClose, triggerRef }: ContextMe
 	}
 
 	return (
-		<div
-			ref={menuRef}
-			className={styles.contextMenu}
-			style={{ top: position.y, left: position.x }}
+		<ContextMenuContext.Provider
+			value={{
+				isOpen: Boolean(position),
+				closeMenu,
+			}}
 		>
-			{children}
-		</div>
+			<div
+				ref={menuRef}
+				className={styles.contextMenu}
+				style={{ top: position.y, left: position.x }}
+			>
+				{children}
+			</div>
+		</ContextMenuContext.Provider>
 	);
 }

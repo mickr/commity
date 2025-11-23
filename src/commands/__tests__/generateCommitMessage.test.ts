@@ -149,7 +149,7 @@ describe("generateCommitMessage", () => {
 			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-				"Commity: Rate limit exceeded. Please try again in a moment."
+				"Commity: Failed to generate commit message. Fireworks API error: 429 - Rate limit exceeded"
 			);
 		});
 
@@ -163,7 +163,7 @@ describe("generateCommitMessage", () => {
 			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-				"Commity: Rate limit exceeded. Please try again in a moment."
+				"Commity: Failed to generate commit message. rate limit exceeded after retries"
 			);
 		});
 
@@ -177,7 +177,7 @@ describe("generateCommitMessage", () => {
 			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-				"Commity: Service temporarily unavailable. Please try again later."
+				"Commity: Failed to generate commit message. Fireworks API error: 500 - Internal server error"
 			);
 		});
 
@@ -191,7 +191,7 @@ describe("generateCommitMessage", () => {
 			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-				"Commity: Service temporarily unavailable. Please try again later."
+				"Commity: Failed to generate commit message. Fireworks API error: 503 - Service unavailable"
 			);
 		});
 
@@ -205,7 +205,7 @@ describe("generateCommitMessage", () => {
 			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-				"Commity: Invalid request. Please check your configuration."
+				"Commity: Failed to generate commit message. Fireworks API error: 400 - Bad request"
 			);
 		});
 
@@ -219,7 +219,7 @@ describe("generateCommitMessage", () => {
 			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-				"Commity: Invalid request. Please check your configuration."
+				"Commity: Failed to generate commit message. Fireworks API error: 401 - Unauthorized"
 			);
 		});
 
@@ -233,7 +233,7 @@ describe("generateCommitMessage", () => {
 			await generateCommitMessage(mockSourceControl, mockContext);
 
 			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-				"Commity: Invalid request. Please check your configuration."
+				"Commity: Failed to generate commit message. Fireworks API error: 403 - Forbidden"
 			);
 		});
 

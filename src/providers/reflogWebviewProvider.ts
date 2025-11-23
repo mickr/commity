@@ -1,7 +1,14 @@
 import * as vscode from "vscode";
 import { randomBytes } from "node:crypto";
 import type { Repository } from "../types/git";
-import { getActualCurrentBranch, getReflogEntries, type ReflogEntry } from "../services/git";
+import {
+	getActualCurrentBranch,
+	getReflogEntries,
+	type ReflogEntry,
+	performSoftResetSquash,
+	performRebaseSquash,
+	getHeadHash,
+} from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 
 class ReflogDiffProvider implements vscode.TextDocumentContentProvider {
@@ -88,7 +95,8 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		const entries: ReflogEntry[] = [];
 		for (const repo of git.repositories) {
 			const repoEntries = await getReflogEntries(repo);
-			entries.push(...repoEntries);
+			const entriesWithRepo = repoEntries.map((e) => ({ ...e, repoRoot: repo.rootUri.fsPath }));
+			entries.push(...entriesWithRepo);
 		}
 
 		this._view?.webview.postMessage({ type: "reflogData", entries });
@@ -110,25 +118,32 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		switch (message.type) {
 			case "webviewLoaded":
 			case "refresh":
-				void this.updateReflog();
+				await this.updateReflog();
 				break;
 			case "selectEntry":
-				void this.handleSelectEntry(message.entry as ReflogEntry);
+				await this.handleSelectEntry(message.entry as ReflogEntry);
 				break;
 			case "selectEntries":
-				void this.handleSelectEntries(message.entries as ReflogEntry[]);
+				await this.handleSelectEntries(message.entries as ReflogEntry[]);
 				break;
 			case "compareEntries":
-				void this.handleCompareEntries(message.entries as ReflogEntry[]);
+				await this.handleCompareEntries(message.entries as ReflogEntry[]);
 				break;
 			case "requestCommitFiles":
-				void this.handleRequestCommitFiles(message.entry as ReflogEntry);
+				await this.handleRequestCommitFiles(message.entry as ReflogEntry);
 				break;
 			case "openDiff":
-				void this.handleOpenDiff(message.file as string, message.hash as string, message.parentHash as string);
+				await this.handleOpenDiff(
+					message.file as string,
+					message.hash as string,
+					message.parentHash as string
+				);
 				break;
 			case "resetToEntry":
-				void this.handleResetToEntry(message.entry as ReflogEntry);
+				await this.handleResetToEntry(message.entry as ReflogEntry);
+				break;
+			case "squashCommits":
+				await this.handleSquashCommits(message.entries as ReflogEntry[]);
 				break;
 		}
 	}
@@ -417,6 +432,71 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 
 		if (confirm === "Reset") {
 			void vscode.window.showInformationMessage(`Would reset to ${entry.hash}`);
+		}
+	}
+
+	private async handleSquashCommits(entries: ReflogEntry[]) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0 || entries.length < 2) {
+			return;
+		}
+
+		const firstRepoRoot = entries[0].repoRoot;
+
+		if (!firstRepoRoot || !entries.every((e) => e.repoRoot === firstRepoRoot)) {
+			vscode.window.showErrorMessage("Cannot squash commits from different repositories");
+			return;
+		}
+
+		const repository = git.repositories.find((r: Repository) => r.rootUri.fsPath === firstRepoRoot);
+
+		if (!repository) {
+			vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		const newest = entries[0];
+		const oldest = entries[entries.length - 1];
+		const hashes = entries.map((e) => e.hash);
+
+		const message = entries.map((e) => e.message).join("\n\n");
+
+		const confirm = await vscode.window.showWarningMessage(
+			`Are you sure you want to squash ${entries.length} commits into the oldest selected commit (${oldest.hash.substring(0, 7)})?`,
+			{ modal: true },
+			"Squash"
+		);
+
+		if (confirm !== "Squash") {
+			return;
+		}
+
+		try {
+			const headHash = await getHeadHash(repository);
+			const isHead = newest.hash === headHash;
+
+			if (isHead) {
+				await performSoftResetSquash({
+					repository,
+					oldestCommitHash: oldest.hash,
+					message,
+				});
+			} else {
+				await performRebaseSquash({
+					repository,
+					commitHashes: hashes,
+					message,
+				});
+			}
+
+			vscode.window.showInformationMessage("Commits squashed successfully");
+			this.refresh();
+		} catch (error) {
+			console.error("Failed to squash commits:", error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			vscode.window.showErrorMessage(`Failed to squash commits: ${errorMessage}`);
 		}
 	}
 

@@ -1,4 +1,6 @@
 import * as path from "node:path";
+import { tmpdir } from "node:os";
+import { writeFile, unlink } from "node:fs/promises";
 import { execFile, execFileSync, execSync } from "node:child_process";
 import { promisify } from "node:util";
 import type { Repository, Change } from "../types/git";
@@ -149,6 +151,15 @@ async function runGit(args: string[], cwd: string): Promise<string> {
 	}
 }
 
+export async function getHeadHash(repository: Repository): Promise<string> {
+	const cwd = repository.rootUri.fsPath;
+	try {
+		return await runGit(["rev-parse", "HEAD"], cwd);
+	} catch {
+		return "";
+	}
+}
+
 export async function getActualCurrentBranch(repository: Repository): Promise<string> {
 	const cwd = repository.rootUri.fsPath;
 	try {
@@ -232,12 +243,8 @@ export async function performRebaseSquash({
 		})
 		.join("\n");
 
-	const { writeFile, unlink } = await import("node:fs/promises");
-	const { tmpdir } = await import("node:os");
-	const { join } = await import("node:path");
-
-	const todoFile = join(tmpdir(), `commity-rebase-${Date.now()}.txt`);
-	const msgFile = join(tmpdir(), `commity-msg-${Date.now()}.txt`);
+	const todoFile = path.join(tmpdir(), `commity-rebase-${Date.now()}.txt`);
+	const msgFile = path.join(tmpdir(), `commity-msg-${Date.now()}.txt`);
 
 	try {
 		await writeFile(todoFile, todoScript, "utf8");
@@ -298,6 +305,7 @@ export interface ReflogEntry {
 	message: string;
 	timestamp: string;
 	filesChanged?: number; // Added filesChanged count
+	repoRoot?: string;
 }
 
 export async function getReflogEntries(repository: Repository): Promise<ReflogEntry[]> {

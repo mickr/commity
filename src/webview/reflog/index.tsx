@@ -2,13 +2,17 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "../reflog.module.css";
 import ReflogEntryComponent, { type ReflogEntry } from "./reflog-item";
-import ContextMenu from "../components/context-menu";
+import ContextMenu, { ContextMenuItem } from "../components/context-menu";
 import { KeymapProvider } from "../components/keymap-provider";
 
 interface Message {
 	type: string;
 	entries?: ReflogEntry[];
 	key?: string;
+	hash?: string;
+	files?: string[];
+	parentHash?: string;
+	isCollapsed?: boolean;
 }
 
 interface VSCodeAPI {
@@ -34,7 +38,7 @@ function App() {
 	const appRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		const messageHandler = (event: MessageEvent<Message | any>) => {
+		const messageHandler = (event: MessageEvent<Message>) => {
 			const message = event.data;
 			if (message.type === "reflogData") {
 				setEntries(message.entries || []);
@@ -44,7 +48,7 @@ function App() {
 				requestAnimationFrame(() => {
 					appRef.current?.focus();
 				});
-			} else if (message.type === "showCommitFiles") {
+			} else if (message.type === "showCommitFiles" && message.hash && message.files) {
 				setExpandedFiles({
 					hash: message.hash,
 					files: message.files,
@@ -171,6 +175,18 @@ function App() {
 		setSelectedIndices(new Set());
 	}, [selectedIndices, entries]);
 
+	const handleResetToFocused = useCallback(() => {
+		const entry = entries[focusedIndex];
+		if (!entry) {
+			return;
+		}
+
+		vscode.postMessage({
+			type: "resetToEntry",
+			entry,
+		});
+	}, [entries, focusedIndex]);
+
 	const handleOpenFileDiff = useCallback(
 		(file: string) => {
 			if (expandedFiles) {
@@ -242,17 +258,17 @@ function App() {
 			<ContextMenu triggerRef={listRef}>
 				<>
 					{focusedIndex === 0 && (
-						<button className={styles.contextMenuItem}>Amend this commit</button>
+						<ContextMenuItem className={styles.contextMenuItem}>Amend this commit</ContextMenuItem>
 					)}
 					{isContiguous(selectedIndices) && selectedIndices.size > 1 && (
-						<button className={styles.contextMenuItem} onClick={handleSquash}>
+						<ContextMenuItem className={styles.contextMenuItem} onClick={handleSquash}>
 							Squash {selectedIndices.size} commits
-						</button>
+						</ContextMenuItem>
 					)}
 					{focusedIndex !== 0 && (
-						<button className={styles.contextMenuItem}>
+						<ContextMenuItem className={styles.contextMenuItem} onClick={handleResetToFocused}>
 							Reset to {entries[focusedIndex]?.hash?.substring(0, 7)}
-						</button>
+						</ContextMenuItem>
 					)}
 				</>
 			</ContextMenu>
