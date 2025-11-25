@@ -162,18 +162,21 @@ function App() {
 		return true;
 	}, []);
 
-	const handleSquash = useCallback(() => {
-		const selectedEntries = Array.from(selectedIndices)
-			.sort((a, b) => a - b)
-			.map((i) => entries[i]);
+	const handleSquash = useCallback(
+		(interactive: boolean) => {
+			const selectedEntries = Array.from(selectedIndices)
+				.sort((a, b) => a - b)
+				.map((i) => entries[i]);
 
-		vscode.postMessage({
-			type: "squashCommits",
-			entries: selectedEntries,
-		});
+			vscode.postMessage({
+				type: interactive ? "squashCommitsInteractive" : "squashCommits",
+				entries: selectedEntries,
+			});
 
-		setSelectedIndices(new Set());
-	}, [selectedIndices, entries]);
+			setSelectedIndices(new Set());
+		},
+		[selectedIndices, entries]
+	);
 
 	const handleResetToFocused = useCallback(() => {
 		const entry = entries[focusedIndex];
@@ -261,9 +264,20 @@ function App() {
 						<ContextMenuItem className={styles.contextMenuItem}>Amend this commit</ContextMenuItem>
 					)}
 					{isContiguous(selectedIndices) && selectedIndices.size > 1 && (
-						<ContextMenuItem className={styles.contextMenuItem} onClick={handleSquash}>
-							Squash {selectedIndices.size} commits
-						</ContextMenuItem>
+						<>
+							<ContextMenuItem
+								className={styles.contextMenuItem}
+								onClick={() => handleSquash(false)}
+							>
+								Squash {selectedIndices.size} commits
+							</ContextMenuItem>
+							<ContextMenuItem
+								className={styles.contextMenuItem}
+								onClick={() => handleSquash(true)}
+							>
+								Squash with message...
+							</ContextMenuItem>
+						</>
 					)}
 					{focusedIndex !== 0 && (
 						<ContextMenuItem className={styles.contextMenuItem} onClick={handleResetToFocused}>

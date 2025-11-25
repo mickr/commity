@@ -11,10 +11,11 @@ import {
 	ensureCleanWorkingTree,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
+import { SquashEditorPanel } from "./squashEditorPanel";
 
 class ReflogDiffProvider implements vscode.TextDocumentContentProvider {
-	private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
-	readonly onDidChange = this._onDidChange.event;
+	private changeEmitter = new vscode.EventEmitter<vscode.Uri>();
+	readonly onDidChange = this.changeEmitter.event;
 	private content = new Map<string, string>();
 
 	provideTextDocumentContent(uri: vscode.Uri): string {
@@ -23,23 +24,25 @@ class ReflogDiffProvider implements vscode.TextDocumentContentProvider {
 
 	updateContent(uri: vscode.Uri, content: string): void {
 		this.content.set(uri.toString(), content);
-		this._onDidChange.fire(uri);
+		this.changeEmitter.fire(uri);
 	}
 }
 
 export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	public static readonly viewType = "commity.reflogView";
-	private _view?: vscode.WebviewView;
-	private _diffProvider: ReflogDiffProvider;
-	private _diffContent = new Map<string, string>();
+	private view?: vscode.WebviewView;
+	private diffProvider: ReflogDiffProvider;
+	private squashEditorPanel: SquashEditorPanel;
 
 	constructor(
-		private readonly _extensionUri: vscode.Uri,
-		private readonly _context: vscode.ExtensionContext
+		private readonly extensionUri: vscode.Uri,
+		context: vscode.ExtensionContext
 	) {
-		this._diffProvider = new ReflogDiffProvider();
-		_context.subscriptions.push(
-			vscode.workspace.registerTextDocumentContentProvider("commity-reflog", this._diffProvider)
+		this.diffProvider = new ReflogDiffProvider();
+		this.squashEditorPanel = SquashEditorPanel.getInstance(extensionUri);
+		this.squashEditorPanel.onDidSquash(() => this.refresh());
+		context.subscriptions.push(
+			vscode.workspace.registerTextDocumentContentProvider("commity-reflog", this.diffProvider)
 		);
 	}
 
@@ -48,11 +51,11 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		_context: vscode.WebviewViewResolveContext,
 		_token: vscode.CancellationToken
 	) {
-		this._view = webviewView;
+		this.view = webviewView;
 
 		webviewView.webview.options = {
 			enableScripts: true,
-			localResourceRoots: [this._extensionUri],
+			localResourceRoots: [this.extensionUri],
 		};
 
 		webviewView.webview.onDidReceiveMessage(async (message) => {
@@ -67,15 +70,15 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	public focusUp() {
-		this._view?.webview.postMessage({ type: "key", key: "ArrowUp" });
+		this.view?.webview.postMessage({ type: "key", key: "ArrowUp" });
 	}
 
 	public focusDown() {
-		this._view?.webview.postMessage({ type: "key", key: "ArrowDown" });
+		this.view?.webview.postMessage({ type: "key", key: "ArrowDown" });
 	}
 
 	public selectEntry() {
-		this._view?.webview.postMessage({ type: "key", key: " " });
+		this.view?.webview.postMessage({ type: "key", key: " " });
 	}
 
 	private async updateReflog() {
@@ -83,14 +86,14 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		const git = gitExtension?.getAPI(1);
 
 		if (!git || git.repositories.length === 0) {
-			this._view?.webview.postMessage({ type: "reflogData", entries: [] });
+			this.view?.webview.postMessage({ type: "reflogData", entries: [] });
 			return;
 		}
 
 		const primaryRepo = this.getPrimaryRepository(git.repositories);
-		if (primaryRepo && this._view) {
+		if (primaryRepo && this.view) {
 			const branch = await getActualCurrentBranch(primaryRepo);
-			this._view.title = branch ? `Reflog (${branch})` : "Reflog";
+			this.view.title = branch ? `Reflog (${branch})` : "Reflog";
 		}
 
 		const entries: ReflogEntry[] = [];
@@ -100,7 +103,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			entries.push(...entriesWithRepo);
 		}
 
-		this._view?.webview.postMessage({ type: "reflogData", entries });
+		this.view?.webview.postMessage({ type: "reflogData", entries });
 	}
 
 	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {
@@ -144,7 +147,10 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				await this.handleResetToEntry(message.entry as ReflogEntry);
 				break;
 			case "squashCommits":
-				await this.handleSquashCommits(message.entries as ReflogEntry[]);
+				await this.handleSquashCommits(message.entries as ReflogEntry[], false);
+				break;
+			case "squashCommitsInteractive":
+				await this.handleSquashCommits(message.entries as ReflogEntry[], true);
 				break;
 		}
 	}
@@ -200,7 +206,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				.map((s) => s.trim())
 				.filter((s) => s.length > 0);
 
-			this._view?.webview.postMessage({
+			this.view?.webview.postMessage({
 				type: "showCommitFiles",
 				files,
 				hash: entry.hash,
@@ -261,7 +267,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				const content = diff;
 				const uri = vscode.Uri.parse(`commity-reflog:${entry.hash}.diff`);
 
-				this._diffProvider.updateContent(uri, content);
+				this.diffProvider.updateContent(uri, content);
 
 				await vscode.window.showTextDocument(uri, {
 					preview: true,
@@ -338,7 +344,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 					`commity-reflog:${oldest.hash.substring(0, 7)}-${newest.hash.substring(0, 7)}.diff`
 				);
 
-				this._diffProvider.updateContent(uri, content);
+				this.diffProvider.updateContent(uri, content);
 
 				await vscode.window.showTextDocument(uri, {
 					preview: true,
@@ -411,7 +417,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 					`commity-reflog:${oldest.hash.substring(0, 7)}-vs-${newest.hash.substring(0, 7)}.diff`
 				);
 
-				this._diffProvider.updateContent(uri, content);
+				this.diffProvider.updateContent(uri, content);
 
 				await vscode.window.showTextDocument(uri, {
 					preview: true,
@@ -436,7 +442,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	private async handleSquashCommits(entries: ReflogEntry[]) {
+	private async handleSquashCommits(entries: ReflogEntry[], interactive: boolean) {
 		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
 		const git = gitExtension?.getAPI(1);
 
@@ -468,9 +474,20 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		const newest = entries[0];
+		const headHash = await getHeadHash(repository);
+		const isHead = newest.hash === headHash;
+
+		if (interactive) {
+			this.squashEditorPanel.show(repository, entries, isHead);
+			return;
+		}
+
+		await this.executeSimpleSquash(repository, entries, isHead);
+	}
+
+	private async executeSimpleSquash(repository: Repository, entries: ReflogEntry[], isHead: boolean) {
 		const oldest = entries[entries.length - 1];
 		const hashes = entries.map((e) => e.hash);
-
 		const message = entries.map((e) => e.message).join("\n\n");
 
 		const confirm = await vscode.window.showWarningMessage(
@@ -484,9 +501,6 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		try {
-			const headHash = await getHeadHash(repository);
-			const isHead = newest.hash === headHash;
-
 			if (isHead) {
 				await performSoftResetSquash({
 					repository,
@@ -512,10 +526,10 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 
 	private getHtmlForWebview(webview: vscode.Webview): string {
 		const scriptUri = webview.asWebviewUri(
-			vscode.Uri.joinPath(this._extensionUri, "out", "webview", "reflog", "index.js")
+			vscode.Uri.joinPath(this.extensionUri, "out", "webview", "reflog", "index.js")
 		);
 		const styleUri = webview.asWebviewUri(
-			vscode.Uri.joinPath(this._extensionUri, "out", "webview", "reflog", "index.css")
+			vscode.Uri.joinPath(this.extensionUri, "out", "webview", "reflog", "index.css")
 		);
 
 		const nonce = getNonce();

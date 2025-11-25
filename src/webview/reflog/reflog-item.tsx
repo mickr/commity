@@ -3,7 +3,6 @@ import styles from "../reflog.module.css";
 
 export interface ReflogEntry {
 	hash: string;
-	// selector: string;
 	message: string;
 	timestamp: string;
 	filesChanged?: number;

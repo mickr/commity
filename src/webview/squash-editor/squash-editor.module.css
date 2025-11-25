@@ -1,0 +1,154 @@
+.container {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	padding: 20px;
+	box-sizing: border-box;
+	gap: 16px;
+}
+
+.header {
+	flex-shrink: 0;
+}
+
+.title {
+	margin: 0 0 4px 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.subtitle {
+	margin: 0;
+	font-size: 13px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.commitsPreview {
+	flex-shrink: 0;
+	background-color: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 4px;
+	padding: 12px;
+	max-height: 150px;
+	overflow-y: auto;
+}
+
+.commitsHeader {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--vscode-descriptionForeground);
+	text-transform: uppercase;
+	margin-bottom: 8px;
+}
+
+.commitsList {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.commitItem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+}
+
+.commitHash {
+	font-family: var(--vscode-editor-font-family);
+	font-size: 12px;
+	color: var(--vscode-gitDecoration-addedResourceForeground);
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.commitMessage {
+	color: var(--vscode-foreground);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.editorSection {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.label {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+	margin-bottom: 8px;
+}
+
+.textarea {
+	flex: 1;
+	min-height: 100px;
+	background-color: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	padding: 10px;
+	font-family: var(--vscode-editor-font-family);
+	font-size: 13px;
+	line-height: 1.5;
+	resize: none;
+}
+
+.textarea:focus {
+	outline: none;
+	border-color: var(--vscode-focusBorder);
+}
+
+.textarea::placeholder {
+	color: var(--vscode-input-placeholderForeground);
+}
+
+.hint {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	margin-top: 8px;
+}
+
+.actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.cancelBtn {
+	background-color: var(--vscode-button-secondaryBackground);
+	color: var(--vscode-button-secondaryForeground);
+	border: none;
+	padding: 8px 16px;
+	cursor: pointer;
+	border-radius: 2px;
+	font-size: 13px;
+}
+
+.cancelBtn:hover {
+	background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.submitBtn {
+	background-color: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+	border: none;
+	padding: 8px 16px;
+	cursor: pointer;
+	border-radius: 2px;
+	font-size: 13px;
+}
+
+.submitBtn:hover {
+	background-color: var(--vscode-button-hoverBackground);
+}
+
+.submitBtn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}

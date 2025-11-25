@@ -56,6 +56,22 @@ async function main() {
 		jsx: "automatic",
 	});
 
+	const squashEditorCtx = await esbuild.context({
+		entryPoints: ["src/webview/squash-editor/index.tsx"],
+		bundle: true,
+		format: "iife",
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		platform: "browser",
+		outfile: "out/webview/squash-editor/index.js",
+		logLevel: "silent",
+		loader: {
+			".module.css": "local-css",
+		},
+		jsx: "automatic",
+	});
+
 	const cssSource = path.join(__dirname, "src/webview/reflog.css");
 	const cssTarget = path.join(__dirname, "out/webview/reflog.css");
 
@@ -68,11 +84,14 @@ async function main() {
 	if (watch) {
 		await extensionCtx.watch();
 		await webviewCtx.watch();
+		await squashEditorCtx.watch();
 	} else {
 		await extensionCtx.rebuild();
 		await webviewCtx.rebuild();
+		await squashEditorCtx.rebuild();
 		await extensionCtx.dispose();
 		await webviewCtx.dispose();
+		await squashEditorCtx.dispose();
 	}
 }
 
