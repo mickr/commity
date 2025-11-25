@@ -277,4 +277,5 @@ function App() {
 }
 
 const root = createRoot(document.getElementById("app")!);
+
 root.render(<App />);

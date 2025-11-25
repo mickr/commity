@@ -230,7 +230,7 @@ describe("ReflogWebviewProvider Squash Tests", () => {
 		});
 
 		expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
-			`Are you sure you want to squash 2 commits?`,
+			`Are you sure you want to squash 2 commits into the oldest selected commit (hash2)?`,
 			{ modal: true },
 			"Squash"
 		);

@@ -88,7 +88,7 @@ export function getStagedDiff(repository: Repository): StagedDiffs {
 					summary: undefined,
 				};
 			} else {
-				const diff = execFileSync("git", ["diff", "--no-color", "--no-ext-diff", "--", filePath], {
+				const diff = execFileSync("git", ["diff", "HEAD", "--no-color", "--no-ext-diff", "--", filePath], {
 					cwd,
 					encoding: "utf8",
 					maxBuffer: 32 * 1024 * 1024,
