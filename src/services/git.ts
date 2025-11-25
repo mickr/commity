@@ -88,11 +88,15 @@ export function getStagedDiff(repository: Repository): StagedDiffs {
 					summary: undefined,
 				};
 			} else {
-				const diff = execFileSync("git", ["diff", "HEAD", "--no-color", "--no-ext-diff", "--", filePath], {
-					cwd,
-					encoding: "utf8",
-					maxBuffer: 32 * 1024 * 1024,
-				});
+				const diff = execFileSync(
+					"git",
+					["diff", "HEAD", "--no-color", "--no-ext-diff", "--", filePath],
+					{
+						cwd,
+						encoding: "utf8",
+						maxBuffer: 32 * 1024 * 1024,
+					}
+				);
 
 				diffs[rel] = {
 					diff,
@@ -175,7 +179,7 @@ export async function ensureCleanWorkingTree(repository: Repository): Promise<bo
 		try {
 			await repository.status();
 		} catch {
-			// ignore status errors and continue with current snapshot
+			return false;
 		}
 	}
 

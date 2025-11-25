@@ -8,6 +8,7 @@ import {
 	performSoftResetSquash,
 	performRebaseSquash,
 	getHeadHash,
+	ensureCleanWorkingTree,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 
@@ -454,6 +455,15 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 
 		if (!repository) {
 			vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		const isClean = await ensureCleanWorkingTree(repository);
+
+		if (!isClean) {
+			vscode.window.showErrorMessage(
+				"Cannot squash: you have uncommitted changes. Commit or stash them first."
+			);
 			return;
 		}
 
