@@ -73,7 +73,11 @@
 .reflogEntry.focused {
 	outline: 1px solid var(--vscode-list-focusOutline);
 	outline-offset: -1px;
-	background-color: var(--vscode-list-hoverBackground);
+}
+
+.reflogEntry.selected.focused {
+	background-color: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
 }
 
 .entryCheckbox {

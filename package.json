@@ -2,7 +2,7 @@
 	"name": "commity-ai",
 	"displayName": "Commity.ai",
 	"description": "Lightning-fast AI commit messages. Smart, instant, and context-aware.",
-	"version": "1.0.1",
+	"version": "2.0.0",
 	"publisher": "ryanlabs",
 	"author": "mickcodez",
 	"license": "SEE LICENSE IN LICENSE",
@@ -13,6 +13,7 @@
 	"bugs": {
 		"url": "https://github.com/mickr/commity/issues"
 	},
+	"icon": "media/icons/commity-logo.png",
 	"homepage": "https://commity.ai",
 	"keywords": [
 		"git",
@@ -37,7 +38,10 @@
 			{
 				"command": "commity.generateCommitMessage",
 				"title": "Generate Commity Message",
-				"icon": "$(robot)"
+				"icon": {
+					"light": "media/icons/commity-logo-light.svg",
+					"dark": "media/icons/commity-logo-dark.svg"
+				}
 			},
 			{
 				"command": "commity.refreshReflog",
@@ -103,7 +107,7 @@
 				{
 					"id": "commity",
 					"title": "Commity",
-					"icon": "$(robot)"
+					"icon": "media/icons/commity-logo-dark.svg"
 				}
 			]
 		},

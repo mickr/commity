@@ -45,6 +45,11 @@ export class SquashEditorPanel {
 			}
 		);
 
+		this.panel.iconPath = {
+			light: vscode.Uri.joinPath(this.extensionUri, "media", "icons", "commity-logo-light.svg"),
+			dark: vscode.Uri.joinPath(this.extensionUri, "media", "icons", "commity-logo-dark.svg"),
+		};
+
 		this.panel.webview.html = this.getHtml(this.panel.webview);
 
 		this.panel.webview.onDidReceiveMessage(async (message) => {
