@@ -192,19 +192,48 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			const { promisify } = await import("node:util");
 			const execFileAsync = promisify(execFile);
 
-			const { stdout: nameStatus } = await execFileAsync(
-				"git",
-				["show", "--name-only", "--format=", entry.hash],
-				{
+			const [nameStatusResult, numstatResult] = await Promise.all([
+				execFileAsync("git", ["show", "--name-status", "--format=", entry.hash], {
 					cwd,
 					maxBuffer: 10 * 1024 * 1024,
-				}
-			);
+				}),
+				execFileAsync("git", ["show", "--numstat", "--format=", entry.hash], {
+					cwd,
+					maxBuffer: 10 * 1024 * 1024,
+				}),
+			]);
 
-			const files = nameStatus
+			const statusMap = new Map<string, string>();
+			nameStatusResult.stdout
 				.split("\n")
-				.map((s) => s.trim())
-				.filter((s) => s.length > 0);
+				.filter((line) => line.trim())
+				.forEach((line) => {
+					const match = line.match(/^([AMDRC])\t(.+)$/);
+					if (match) {
+						statusMap.set(match[2], match[1]);
+					}
+				});
+
+			const statsMap = new Map<string, { additions: number; deletions: number }>();
+			numstatResult.stdout
+				.split("\n")
+				.filter((line) => line.trim())
+				.forEach((line) => {
+					const parts = line.split("\t");
+					if (parts.length >= 3) {
+						const additions = parts[0] === "-" ? 0 : parseInt(parts[0], 10);
+						const deletions = parts[1] === "-" ? 0 : parseInt(parts[1], 10);
+						const filename = parts[2];
+						statsMap.set(filename, { additions, deletions });
+					}
+				});
+
+			const files = Array.from(statusMap.keys()).map((filename) => ({
+				name: filename,
+				status: statusMap.get(filename) || "M",
+				additions: statsMap.get(filename)?.additions ?? 0,
+				deletions: statsMap.get(filename)?.deletions ?? 0,
+			}));
 
 			this.view?.webview.postMessage({
 				type: "showCommitFiles",

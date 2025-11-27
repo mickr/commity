@@ -310,22 +310,47 @@ export async function performRebaseSquash({
 	}
 }
 
+export type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
+
 export interface ReflogEntry {
 	hash: string;
-	// selector: string; // Removed selector
 	message: string;
 	timestamp: string;
-	filesChanged?: number; // Added filesChanged count
+	filesChanged?: number;
 	repoRoot?: string;
+	author?: {
+		name: string;
+		email?: string;
+	};
+	isMerge?: boolean;
+	totalAdditions?: number;
+	totalDeletions?: number;
+	commitType?: CommitType;
+}
+
+function parseCommitType(message: string): CommitType | undefined {
+	const lowerMessage = message.toLowerCase();
+	if (lowerMessage.startsWith("merge")) {
+		return "merge";
+	}
+	const match = message.match(/^(\w+)(?:\(.+?\))?:/);
+	if (match) {
+		const type = match[1].toLowerCase();
+		const validTypes: CommitType[] = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "chore", "ci", "build", "revert"];
+		if (validTypes.includes(type as CommitType)) {
+			return type as CommitType;
+		}
+	}
+	return undefined;
 }
 
 export async function getReflogEntries(repository: Repository): Promise<ReflogEntry[]> {
 	const cwd = repository.rootUri.fsPath;
 
 	try {
-		// Added --numstat to get changed files count
+		// Format: hash|subject|date|author name|author email|parent count
 		const logOutput = await runGit(
-			["log", "--format=BEGIN_COMMIT|%H|%s|%ci", "--numstat", "-n", "100"],
+			["log", "--format=BEGIN_COMMIT|%H|%s|%ci|%an|%ae|%P", "--numstat", "-n", "100"],
 			cwd
 		);
 
@@ -333,30 +358,58 @@ export async function getReflogEntries(repository: Repository): Promise<ReflogEn
 		const lines = logOutput.split("\n");
 		let currentEntry: Partial<ReflogEntry> | null = null;
 		let filesCount = 0;
+		let totalAdditions = 0;
+		let totalDeletions = 0;
 
 		for (const line of lines) {
 			if (line.startsWith("BEGIN_COMMIT|")) {
 				if (currentEntry) {
 					currentEntry.filesChanged = filesCount;
+					currentEntry.totalAdditions = totalAdditions;
+					currentEntry.totalDeletions = totalDeletions;
 					entries.push(currentEntry as ReflogEntry);
 				}
-				const [_, hash, message, timestamp] = line.split("|");
+				const parts = line.split("|");
+				const hash = parts[1] || "";
+				const message = parts[2] || "";
+				const timestamp = parts[3] || "";
+				const authorName = parts[4] || "";
+				const authorEmail = parts[5] || "";
+				const parents = parts[6] || "";
+				const isMerge = parents.trim().split(" ").length > 1;
+
 				currentEntry = {
-					hash: hash || "",
-					message: message || "",
-					timestamp: timestamp || "",
+					hash,
+					message,
+					timestamp,
+					author: {
+						name: authorName,
+						email: authorEmail || undefined,
+					},
+					isMerge,
+					commitType: isMerge ? "merge" : parseCommitType(message),
 				};
 				filesCount = 0;
+				totalAdditions = 0;
+				totalDeletions = 0;
 			} else if (line.trim().length > 0 && currentEntry) {
 				// numstat lines look like: "1       2       path/to/file"
-				// We just want to count them
-				filesCount++;
+				const parts = line.split("\t");
+				if (parts.length >= 3) {
+					const additions = parts[0] === "-" ? 0 : parseInt(parts[0], 10) || 0;
+					const deletions = parts[1] === "-" ? 0 : parseInt(parts[1], 10) || 0;
+					totalAdditions += additions;
+					totalDeletions += deletions;
+					filesCount++;
+				}
 			}
 		}
 
 		// Push the last entry
 		if (currentEntry) {
 			currentEntry.filesChanged = filesCount;
+			currentEntry.totalAdditions = totalAdditions;
+			currentEntry.totalDeletions = totalDeletions;
 			entries.push(currentEntry as ReflogEntry);
 		}
 

@@ -5,12 +5,19 @@ import ReflogEntryComponent, { type ReflogEntry } from "./reflog-item";
 import ContextMenu, { ContextMenuItem } from "../components/context-menu";
 import { KeymapProvider } from "../components/keymap-provider";
 
+interface FileInfo {
+	name: string;
+	status: string;
+	additions: number;
+	deletions: number;
+}
+
 interface Message {
 	type: string;
 	entries?: ReflogEntry[];
 	key?: string;
 	hash?: string;
-	files?: string[];
+	files?: FileInfo[];
 	parentHash?: string;
 	isCollapsed?: boolean;
 }
@@ -30,7 +37,7 @@ function App() {
 	const [focusedIndex, setFocusedIndex] = useState<number>(0);
 	const [expandedFiles, setExpandedFiles] = useState<{
 		hash: string;
-		files: string[];
+		files: FileInfo[];
 		parentHash?: string;
 		isCollapsed?: boolean;
 	} | null>(null);
