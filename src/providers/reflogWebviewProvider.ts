@@ -485,7 +485,11 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		await this.executeSimpleSquash(repository, entries, isHead);
 	}
 
-	private async executeSimpleSquash(repository: Repository, entries: ReflogEntry[], isHead: boolean) {
+	private async executeSimpleSquash(
+		repository: Repository,
+		entries: ReflogEntry[],
+		isHead: boolean
+	) {
 		const oldest = entries[entries.length - 1];
 		const hashes = entries.map((e) => e.hash);
 		const message = entries.map((e) => e.message).join("\n\n");

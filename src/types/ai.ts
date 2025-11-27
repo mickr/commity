@@ -16,3 +16,15 @@ export interface CommitMessageRequest {
 	author: string;
 	override?: string;
 }
+
+export interface SquashCommit {
+	hash: string;
+	message: string;
+}
+
+export interface SquashMessageRequest {
+	commits: SquashCommit[];
+	branch: string;
+	author: string;
+	override?: string;
+}

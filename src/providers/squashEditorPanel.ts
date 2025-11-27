@@ -1,7 +1,15 @@
 import * as vscode from "vscode";
 import { randomBytes } from "node:crypto";
-import type { Repository } from "../types/git";
-import { type ReflogEntry, performSoftResetSquash, performRebaseSquash } from "../services/git";
+import type { Commit, Repository } from "../types/git";
+import {
+	type ReflogEntry,
+	performSoftResetSquash,
+	performRebaseSquash,
+	getCurrentAuthor,
+	getCurrentBranch,
+} from "../services/git";
+import { getFireworksProvider } from "../services/ai-providers/fireworks";
+import type { SquashMessageRequest } from "../types/ai";
 
 interface PendingSquash {
 	repository: Repository;
@@ -14,7 +22,6 @@ export class SquashEditorPanel {
 	private panel?: vscode.WebviewPanel;
 	private pendingSquash?: PendingSquash;
 	private squashEmitter = new vscode.EventEmitter<void>();
-
 	readonly onDidSquash = this.squashEmitter.event;
 
 	constructor(private readonly extensionUri: vscode.Uri) {}
@@ -23,6 +30,7 @@ export class SquashEditorPanel {
 		if (!SquashEditorPanel.instance) {
 			SquashEditorPanel.instance = new SquashEditorPanel(extensionUri);
 		}
+
 		return SquashEditorPanel.instance;
 	}
 
@@ -32,6 +40,7 @@ export class SquashEditorPanel {
 		if (this.panel) {
 			this.panel.reveal();
 			this.sendInitData(entries);
+
 			return;
 		}
 
@@ -55,11 +64,18 @@ export class SquashEditorPanel {
 		this.panel.webview.onDidReceiveMessage(async (message) => {
 			switch (message.type) {
 				case "ready":
-					this.sendInitData(entries);
+					if (this.pendingSquash) {
+						this.sendInitData(this.pendingSquash.entries);
+					}
+
 					break;
 				case "squash":
 					await this.executeSquash(message.message);
+
 					this.panel?.dispose();
+					break;
+				case "generateSquashMessage":
+					await this.generateSquashMessage(message.data.commits);
 					break;
 				case "cancel":
 					this.panel?.dispose();
@@ -82,6 +98,40 @@ export class SquashEditorPanel {
 				commits: entries.map((e) => ({ hash: e.hash, message: e.message })),
 			},
 		});
+	}
+
+	private async generateSquashMessage(commits: Commit[]) {
+		const client = getFireworksProvider();
+		const repository = this.pendingSquash?.repository;
+
+		const request: SquashMessageRequest = {
+			commits: commits.map((c) => ({ hash: c.hash, message: c.message })),
+			branch: repository ? getCurrentBranch(repository) : "",
+			author: getCurrentAuthor(),
+		};
+
+		let message = "";
+
+		try {
+			for await (const chunk of client.streamSquashMessage(request)) {
+				message += chunk;
+				this.panel?.webview.postMessage({
+					type: "squashMessageChunk",
+					data: { chunk, message },
+				});
+			}
+
+			this.panel?.webview.postMessage({
+				type: "squashMessageComplete",
+				data: { message },
+			});
+		} catch (error) {
+			console.error("Failed to generate squash message:", error);
+			this.panel?.webview.postMessage({
+				type: "squashMessageError",
+				data: { error: error instanceof Error ? error.message : "Unknown error" },
+			});
+		}
 	}
 
 	private async executeSquash(customMessage: string) {

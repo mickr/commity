@@ -505,7 +505,7 @@ describe("ensureCleanWorkingTree", () => {
 		expect(result).toBe(false);
 	});
 
-	it("continues when status() throws error", async () => {
+	it("returns false when status() throws error", async () => {
 		const mockRepository = {
 			status: jest.fn().mockRejectedValue(new Error("Git error")),
 			state: {
@@ -517,7 +517,7 @@ describe("ensureCleanWorkingTree", () => {
 		} as unknown as Repository;
 
 		const result = await ensureCleanWorkingTree(mockRepository);
-		expect(result).toBe(true);
+		expect(result).toBe(false);
 	});
 
 	it("handles repository without status method", async () => {
@@ -591,6 +591,12 @@ describe("performSoftResetSquash", () => {
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
 		} as unknown as Repository;
 
 		const result = await performSoftResetSquash({
@@ -630,6 +636,12 @@ describe("performSoftResetSquash", () => {
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
 		} as unknown as Repository;
 
 		await expect(
@@ -650,6 +662,12 @@ describe("performSoftResetSquash", () => {
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
+			state: {
+				indexChanges: [],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
 		} as unknown as Repository;
 
 		await expect(
@@ -659,6 +677,36 @@ describe("performSoftResetSquash", () => {
 				message: "Test",
 			})
 		).rejects.toThrow(SquashError);
+	});
+
+	it("throws SquashError when working tree is dirty", async () => {
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+			state: {
+				indexChanges: [{ uri: vscode.Uri.file("/project/file.ts") }],
+				workingTreeChanges: [],
+				untrackedChanges: [],
+				mergeChanges: [],
+			},
+		} as unknown as Repository;
+
+		await expect(
+			performSoftResetSquash({
+				repository: mockRepository,
+				oldestCommitHash: "def5678",
+				message: "Test",
+			})
+		).rejects.toThrow(SquashError);
+
+		await expect(
+			performSoftResetSquash({
+				repository: mockRepository,
+				oldestCommitHash: "def5678",
+				message: "Test",
+			})
+		).rejects.toThrow("uncommitted changes");
+
+		expect(mockExecFileAsync).not.toHaveBeenCalled();
 	});
 });
 

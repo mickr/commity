@@ -1,10 +1,23 @@
-import type { CommitMessageRequest, LLMProvider } from "../../types/ai";
+import type { CommitMessageRequest, LLMProvider, SquashMessageRequest } from "../../types/ai";
 
 export const resolveFireworksBaseUrl = (isDevelopment: boolean): string => {
-	return isDevelopment
-		? "http://localhost:8787"
-		: "https://fireworks.commity.ai";
+	return isDevelopment ? "http://localhost:8787" : "https://fireworks.commity.ai";
 };
+
+let instance: FireworksProvider | undefined;
+
+export function initFireworksProvider(isDevelopment: boolean): void {
+	instance = new FireworksProvider(isDevelopment);
+}
+
+export function getFireworksProvider(): FireworksProvider {
+	if (!instance) {
+		throw new Error(
+			"FireworksProvider not initialized. Call initFireworksProvider during activation."
+		);
+	}
+	return instance;
+}
 
 type FireworksSuccessResponse = {
 	message: string;
@@ -14,9 +27,7 @@ type FireworksErrorResponse = {
 	error: string;
 };
 
-const isFireworksSuccessResponse = (
-	value: unknown,
-): value is FireworksSuccessResponse => {
+const isFireworksSuccessResponse = (value: unknown): value is FireworksSuccessResponse => {
 	return (
 		typeof value === "object" &&
 		value !== null &&
@@ -28,7 +39,7 @@ const isFireworksSuccessResponse = (
 export class FireworksError extends Error {
 	constructor(
 		public readonly status: number,
-		message: string,
+		message: string
 	) {
 		super(message);
 		this.name = "FireworksError";
@@ -42,103 +53,17 @@ export class FireworksProvider implements LLMProvider {
 		this.baseUrl = resolveFireworksBaseUrl(isDevelopment);
 	}
 
-	async *streamText(prompt: string): AsyncGenerator<string> {
-		const text = await this.generateText(prompt);
-		yield text;
-	}
-
-	async generateText(prompt: string): Promise<string> {
-		const endpoint = new URL("/api/generate", this.baseUrl).toString();
-
-		const response = await fetch(endpoint, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ prompt }),
-		});
-
+	private async throwIfNotOk(response: Response): Promise<void> {
 		if (!response.ok) {
-			const error = (await response
-				.json()
-				.catch(() => null)) as FireworksErrorResponse | null;
+			const error = (await response.json().catch(() => null)) as FireworksErrorResponse | null;
 			throw new FireworksError(
 				response.status,
-				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
+				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`
 			);
 		}
-
-		const data: unknown = await response.json();
-
-		if (!isFireworksSuccessResponse(data)) {
-			throw new Error("Fireworks API returned an unexpected payload");
-		}
-
-		return data.message;
 	}
 
-	async generateCommitMessage(
-		request: CommitMessageRequest,
-		signal?: AbortSignal,
-	): Promise<string> {
-		const endpoint = new URL("/api/commit-message", this.baseUrl).toString();
-
-		const response = await fetch(endpoint, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(request),
-			signal,
-		});
-
-		if (!response.ok) {
-			const error = (await response
-				.json()
-				.catch(() => null)) as FireworksErrorResponse | null;
-			throw new FireworksError(
-				response.status,
-				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
-			);
-		}
-
-		const data: unknown = await response.json();
-
-		if (!isFireworksSuccessResponse(data)) {
-			throw new Error("Fireworks API returned an unexpected payload");
-		}
-
-		return data.message;
-	}
-
-	async *streamCommitMessage(
-		request: CommitMessageRequest,
-		signal?: AbortSignal,
-	): AsyncGenerator<string> {
-		const endpoint = new URL(
-			"/api/commit-message/stream",
-			this.baseUrl,
-		).toString();
-
-		const response = await fetch(endpoint, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(request),
-			signal,
-		});
-
-		if (!response.ok) {
-			const error = (await response
-				.json()
-				.catch(() => null)) as FireworksErrorResponse | null;
-			throw new FireworksError(
-				response.status,
-				`Fireworks API error: ${response.status} - ${error?.error || response.statusText}`,
-			);
-		}
-
+	private async *streamSSE(response: Response): AsyncGenerator<string> {
 		if (!response.body) {
 			throw new Error("Response body is null");
 		}
@@ -181,5 +106,96 @@ export class FireworksProvider implements LLMProvider {
 			}
 			reader.releaseLock();
 		}
+	}
+
+	async *streamText(prompt: string): AsyncGenerator<string> {
+		const text = await this.generateText(prompt);
+		yield text;
+	}
+
+	async generateText(prompt: string): Promise<string> {
+		const endpoint = new URL("/api/generate", this.baseUrl).toString();
+
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ prompt }),
+		});
+
+		await this.throwIfNotOk(response);
+
+		const data: unknown = await response.json();
+
+		if (!isFireworksSuccessResponse(data)) {
+			throw new Error("Fireworks API returned an unexpected payload");
+		}
+
+		return data.message;
+	}
+
+	async generateCommitMessage(
+		request: CommitMessageRequest,
+		signal?: AbortSignal
+	): Promise<string> {
+		const endpoint = new URL("/api/commit-message", this.baseUrl).toString();
+
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(request),
+			signal,
+		});
+
+		await this.throwIfNotOk(response);
+
+		const data: unknown = await response.json();
+
+		if (!isFireworksSuccessResponse(data)) {
+			throw new Error("Fireworks API returned an unexpected payload");
+		}
+
+		return data.message;
+	}
+
+	async *streamCommitMessage(
+		request: CommitMessageRequest,
+		signal?: AbortSignal
+	): AsyncGenerator<string> {
+		const endpoint = new URL("/api/commit-message/stream", this.baseUrl).toString();
+
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(request),
+			signal,
+		});
+
+		await this.throwIfNotOk(response);
+		yield* this.streamSSE(response);
+	}
+
+	async *streamSquashMessage(
+		request: SquashMessageRequest,
+		signal?: AbortSignal
+	): AsyncGenerator<string> {
+		const endpoint = new URL("/api/squash-message/stream", this.baseUrl).toString();
+
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(request),
+			signal,
+		});
+
+		await this.throwIfNotOk(response);
+		yield* this.streamSSE(response);
 	}
 }

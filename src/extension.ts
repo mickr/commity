@@ -2,8 +2,10 @@ import * as vscode from "vscode";
 import { generateCommitMessage } from "./commands/generateCommitMessage";
 import { ReflogWebviewProvider } from "./providers/reflogWebviewProvider";
 import { GitContentProvider } from "./providers/gitContentProvider";
+import { initFireworksProvider } from "./services/ai-providers/fireworks";
 
 export function activate(context: vscode.ExtensionContext) {
+	initFireworksProvider(context.extensionMode === vscode.ExtensionMode.Development);
 	const disposable = vscode.commands.registerCommand(
 		"commity.generateCommitMessage",
 		(sourceControl: vscode.SourceControl) => generateCommitMessage(sourceControl, context)

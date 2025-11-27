@@ -269,13 +269,13 @@ function App() {
 								className={styles.contextMenuItem}
 								onClick={() => handleSquash(false)}
 							>
-								Squash {selectedIndices.size} commits
+								Squash {selectedIndices.size} commits (simple)
 							</ContextMenuItem>
 							<ContextMenuItem
 								className={styles.contextMenuItem}
 								onClick={() => handleSquash(true)}
 							>
-								Squash with message...
+								Squash {selectedIndices.size} commits with message...
 							</ContextMenuItem>
 						</>
 					)}

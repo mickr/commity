@@ -1,16 +1,22 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "./squash-editor.module.css";
+import { CommityIcon } from "../components/icons/CommityIcon";
+
+interface Commit {
+	hash: string;
+	message: string;
+}
 
 interface SquashData {
 	commitCount: number;
 	defaultMessage: string;
-	commits: Array<{ hash: string; message: string }>;
+	commits: Commit[];
 }
 
 interface Message {
 	type: string;
-	data?: SquashData;
+	data?: SquashData | { message: string } | { chunk: string; message: string } | { error: string };
 }
 
 interface VSCodeAPI {
@@ -23,19 +29,39 @@ const vscode = acquireVsCodeApi();
 
 function App() {
 	const [message, setMessage] = useState("");
-	const [commits, setCommits] = useState<Array<{ hash: string; message: string }>>([]);
+	const [commits, setCommits] = useState<Commit[]>([]);
+	const [isGenerating, setIsGenerating] = useState(false);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 	useEffect(() => {
 		const messageHandler = (event: MessageEvent<Message>) => {
 			const msg = event.data;
-			if (msg.type === "init" && msg.data) {
-				setMessage(msg.data.defaultMessage);
-				setCommits(msg.data.commits);
-				requestAnimationFrame(() => {
-					textareaRef.current?.focus();
-					textareaRef.current?.select();
-				});
+
+			switch (msg.type) {
+				case "init":
+					if (msg.data && "defaultMessage" in msg.data) {
+						setMessage(msg.data.defaultMessage);
+						setCommits(msg.data.commits);
+						requestAnimationFrame(() => {
+							textareaRef.current?.focus();
+							textareaRef.current?.select();
+						});
+					}
+					break;
+				case "squashMessageChunk":
+					if (msg.data && "message" in msg.data) {
+						setMessage(msg.data.message);
+					}
+					break;
+				case "squashMessageComplete":
+					setIsGenerating(false);
+					if (msg.data && "message" in msg.data) {
+						setMessage(msg.data.message);
+					}
+					break;
+				case "squashMessageError":
+					setIsGenerating(false);
+					break;
 			}
 		};
 
@@ -66,6 +92,12 @@ function App() {
 		[handleSubmit, handleCancel]
 	);
 
+	const handleGenerateMessage = useCallback(() => {
+		setIsGenerating(true);
+		setMessage("");
+		vscode.postMessage({ type: "generateSquashMessage", data: { commits } });
+	}, [commits]);
+
 	return (
 		<div className={styles.container}>
 			<div className={styles.header}>
@@ -86,9 +118,16 @@ function App() {
 			</div>
 
 			<div className={styles.editorSection}>
-				<label className={styles.label} htmlFor="commit-message">
-					New commit message:
-				</label>
+				<div className={styles.editorHeader}>
+					<label htmlFor="commit-message">New commit message:</label>
+					<button
+						className={styles.generateBtn}
+						onClick={handleGenerateMessage}
+						disabled={isGenerating}
+					>
+						<CommityIcon size={14} /> {isGenerating ? "Generating..." : "Generate message"}
+					</button>
+				</div>
 				<textarea
 					ref={textareaRef}
 					id="commit-message"
@@ -96,7 +135,9 @@ function App() {
 					value={message}
 					onChange={(e) => setMessage(e.target.value)}
 					onKeyDown={handleKeyDown}
-					placeholder="Enter commit message..."
+					placeholder={
+						isGenerating ? "Generating..." : "Enter the new commit message for the squashed commit"
+					}
 					rows={10}
 				/>
 				<div className={styles.hint}>Press ⌘+Enter to squash, Escape to cancel</div>

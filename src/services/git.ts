@@ -216,6 +216,13 @@ export async function performSoftResetSquash({
 	oldestCommitHash: string;
 	message: string;
 }): Promise<{ newCommitHash: string; shortCommitHash: string }> {
+	const isClean = await ensureCleanWorkingTree(repository);
+	if (!isClean) {
+		throw new SquashError(
+			"Cannot squash: you have uncommitted changes. Commit or stash them first."
+		);
+	}
+
 	const cwd = repository.rootUri.fsPath;
 	await runGit(["reset", "--soft", `${oldestCommitHash}^`], cwd);
 	await runGit(["commit", "-m", message], cwd);

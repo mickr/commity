@@ -77,6 +77,28 @@
 	min-height: 0;
 }
 
+.editorHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.generateBtn {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	background-color: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+}
+
+.generateBtn:hover {
+	color: var(--vscode-button-hoverForeground);
+}
+
 .label {
 	font-size: 13px;
 	font-weight: 600;

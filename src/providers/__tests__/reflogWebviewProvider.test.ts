@@ -34,6 +34,7 @@ jest.mock("../../services/git", () => ({
 	performSoftResetSquash: jest.fn(),
 	performRebaseSquash: jest.fn(),
 	getHeadHash: jest.fn(),
+	ensureCleanWorkingTree: jest.fn().mockResolvedValue(true),
 }));
 
 describe("ReflogWebviewProvider Squash Tests", () => {
