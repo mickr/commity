@@ -197,6 +197,18 @@ function App() {
 		});
 	}, [entries, focusedIndex]);
 
+	const handleAmendCommit = useCallback(() => {
+		const entry = entries[0];
+		if (!entry) {
+			return;
+		}
+
+		vscode.postMessage({
+			type: "amendCommit",
+			entry,
+		});
+	}, [entries]);
+
 	const handleOpenFileDiff = useCallback(
 		(file: string) => {
 			if (expandedFiles) {
@@ -268,7 +280,9 @@ function App() {
 			<ContextMenu triggerRef={listRef}>
 				<>
 					{focusedIndex === 0 && (
-						<ContextMenuItem className={styles.contextMenuItem}>Amend this commit</ContextMenuItem>
+						<ContextMenuItem className={styles.contextMenuItem} onClick={handleAmendCommit}>
+							Amend this commit
+						</ContextMenuItem>
 					)}
 					{isContiguous(selectedIndices) && selectedIndices.size > 1 && (
 						<>

@@ -40,7 +40,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	) {
 		this.diffProvider = new ReflogDiffProvider();
 		this.squashEditorPanel = SquashEditorPanel.getInstance(extensionUri);
-		this.squashEditorPanel.onDidSquash(() => this.refresh());
+		this.squashEditorPanel.onDidComplete(() => this.refresh());
 		context.subscriptions.push(
 			vscode.workspace.registerTextDocumentContentProvider("commity-reflog", this.diffProvider)
 		);
@@ -151,6 +151,9 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				break;
 			case "squashCommitsInteractive":
 				await this.handleSquashCommits(message.entries as ReflogEntry[], true);
+				break;
+			case "amendCommit":
+				await this.handleAmendCommit(message.entry as ReflogEntry);
 				break;
 		}
 	}
@@ -469,6 +472,26 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		if (confirm === "Reset") {
 			void vscode.window.showInformationMessage(`Would reset to ${entry.hash}`);
 		}
+	}
+
+	private async handleAmendCommit(entry: ReflogEntry) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0) {
+			return;
+		}
+
+		const repository = entry.repoRoot
+			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
+			: git.repositories[0];
+
+		if (!repository) {
+			vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		this.squashEditorPanel.show(repository, [entry], true, "amend");
 	}
 
 	private async handleSquashCommits(entries: ReflogEntry[], interactive: boolean) {

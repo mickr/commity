@@ -5,24 +5,28 @@ import {
 	type ReflogEntry,
 	performSoftResetSquash,
 	performRebaseSquash,
+	performAmendCommit,
 	getCurrentAuthor,
 	getCurrentBranch,
 } from "../services/git";
 import { getFireworksProvider } from "../services/ai-providers/fireworks";
 import type { SquashMessageRequest } from "../types/ai";
 
-interface PendingSquash {
+type EditorMode = "squash" | "amend";
+
+interface PendingOperation {
 	repository: Repository;
 	entries: ReflogEntry[];
 	isHead: boolean;
+	mode: EditorMode;
 }
 
 export class SquashEditorPanel {
 	private static instance?: SquashEditorPanel;
 	private panel?: vscode.WebviewPanel;
-	private pendingSquash?: PendingSquash;
-	private squashEmitter = new vscode.EventEmitter<void>();
-	readonly onDidSquash = this.squashEmitter.event;
+	private pendingOperation?: PendingOperation;
+	private completeEmitter = new vscode.EventEmitter<void>();
+	readonly onDidComplete = this.completeEmitter.event;
 
 	constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -34,19 +38,22 @@ export class SquashEditorPanel {
 		return SquashEditorPanel.instance;
 	}
 
-	show(repository: Repository, entries: ReflogEntry[], isHead: boolean) {
-		this.pendingSquash = { repository, entries, isHead };
+	show(repository: Repository, entries: ReflogEntry[], isHead: boolean, mode: EditorMode = "squash") {
+		this.pendingOperation = { repository, entries, isHead, mode };
+
+		const title = mode === "amend" ? "Amend Commit" : "Squash Commits";
 
 		if (this.panel) {
+			this.panel.title = title;
 			this.panel.reveal();
-			this.sendInitData(entries);
+			this.sendInitData();
 
 			return;
 		}
 
 		this.panel = vscode.window.createWebviewPanel(
 			"commity.squashEditor",
-			"Squash Commits",
+			title,
 			vscode.ViewColumn.Active,
 			{
 				enableScripts: true,
@@ -64,18 +71,18 @@ export class SquashEditorPanel {
 		this.panel.webview.onDidReceiveMessage(async (message) => {
 			switch (message.type) {
 				case "ready":
-					if (this.pendingSquash) {
-						this.sendInitData(this.pendingSquash.entries);
+					if (this.pendingOperation) {
+						this.sendInitData();
 					}
 
 					break;
-				case "squash":
-					await this.executeSquash(message.message);
+				case "submit":
+					await this.executeOperation(message.message);
 
 					this.panel?.dispose();
 					break;
-				case "generateSquashMessage":
-					await this.generateSquashMessage(message.data.commits);
+				case "generateMessage":
+					await this.generateMessage(message.data.commits);
 					break;
 				case "cancel":
 					this.panel?.dispose();
@@ -85,14 +92,21 @@ export class SquashEditorPanel {
 
 		this.panel.onDidDispose(() => {
 			this.panel = undefined;
-			this.pendingSquash = undefined;
+			this.pendingOperation = undefined;
 		});
 	}
 
-	private sendInitData(entries: ReflogEntry[]) {
+	private sendInitData() {
+		if (!this.pendingOperation) {
+			return;
+		}
+
+		const { entries, mode } = this.pendingOperation;
+
 		this.panel?.webview.postMessage({
 			type: "init",
 			data: {
+				mode,
 				commitCount: entries.length,
 				defaultMessage: entries.map((e) => e.message).join("\n\n"),
 				commits: entries.map((e) => ({ hash: e.hash, message: e.message })),
@@ -100,9 +114,9 @@ export class SquashEditorPanel {
 		});
 	}
 
-	private async generateSquashMessage(commits: Commit[]) {
+	private async generateMessage(commits: Commit[]) {
 		const client = getFireworksProvider();
-		const repository = this.pendingSquash?.repository;
+		const repository = this.pendingOperation?.repository;
 
 		const request: SquashMessageRequest = {
 			commits: commits.map((c) => ({ hash: c.hash, message: c.message })),
@@ -116,54 +130,63 @@ export class SquashEditorPanel {
 			for await (const chunk of client.streamSquashMessage(request)) {
 				message += chunk;
 				this.panel?.webview.postMessage({
-					type: "squashMessageChunk",
+					type: "messageChunk",
 					data: { chunk, message },
 				});
 			}
 
 			this.panel?.webview.postMessage({
-				type: "squashMessageComplete",
+				type: "messageComplete",
 				data: { message },
 			});
 		} catch (error) {
-			console.error("Failed to generate squash message:", error);
+			console.error("Failed to generate message:", error);
 			this.panel?.webview.postMessage({
-				type: "squashMessageError",
+				type: "messageError",
 				data: { error: error instanceof Error ? error.message : "Unknown error" },
 			});
 		}
 	}
 
-	private async executeSquash(customMessage: string) {
-		if (!this.pendingSquash) {
+	private async executeOperation(customMessage: string) {
+		if (!this.pendingOperation) {
 			return;
 		}
 
-		const { repository, entries, isHead } = this.pendingSquash;
-		const oldest = entries[entries.length - 1];
-		const hashes = entries.map((e) => e.hash);
+		const { repository, entries, isHead, mode } = this.pendingOperation;
 
 		try {
-			if (isHead) {
-				await performSoftResetSquash({
+			if (mode === "amend") {
+				await performAmendCommit({
 					repository,
-					oldestCommitHash: oldest.hash,
 					message: customMessage,
 				});
+				vscode.window.showInformationMessage("Commit amended successfully");
 			} else {
-				await performRebaseSquash({
-					repository,
-					commitHashes: hashes,
-					message: customMessage,
-				});
+				const oldest = entries[entries.length - 1];
+				const hashes = entries.map((e) => e.hash);
+
+				if (isHead) {
+					await performSoftResetSquash({
+						repository,
+						oldestCommitHash: oldest.hash,
+						message: customMessage,
+					});
+				} else {
+					await performRebaseSquash({
+						repository,
+						commitHashes: hashes,
+						message: customMessage,
+					});
+				}
+				vscode.window.showInformationMessage("Commits squashed successfully");
 			}
 
-			vscode.window.showInformationMessage("Commits squashed successfully");
-			this.squashEmitter.fire();
+			this.completeEmitter.fire();
 		} catch (error) {
-			console.error("Failed to squash commits:", error);
+			console.error(`Failed to ${mode} commit(s):`, error);
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			vscode.window.showErrorMessage(`Failed to squash commits: ${errorMessage}`);
+			vscode.window.showErrorMessage(`Failed to ${mode} commit(s): ${errorMessage}`);
 		}
 	}
 
@@ -184,7 +207,7 @@ export class SquashEditorPanel {
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
 				<link href="${styleUri}" rel="stylesheet">
-				<title>Squash Commits</title>
+				<title>Edit Commit</title>
 				<style>
 					body {
 						padding: 0;

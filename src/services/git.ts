@@ -310,6 +310,20 @@ export async function performRebaseSquash({
 	}
 }
 
+export async function performAmendCommit({
+	repository,
+	message,
+}: {
+	repository: Repository;
+	message: string;
+}): Promise<{ newCommitHash: string; shortCommitHash: string }> {
+	const cwd = repository.rootUri.fsPath;
+	await runGit(["commit", "--amend", "-m", message], cwd);
+	const shortCommitHash = await runGit(["rev-parse", "--short", "HEAD"], cwd);
+	const newCommitHash = await runGit(["rev-parse", "HEAD"], cwd);
+	return { newCommitHash, shortCommitHash };
+}
+
 export type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
 
 export interface ReflogEntry {
