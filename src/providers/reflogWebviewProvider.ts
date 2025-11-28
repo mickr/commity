@@ -9,6 +9,7 @@ import {
 	performRebaseSquash,
 	getHeadHash,
 	ensureCleanWorkingTree,
+	performUndoLastCommit,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 import { SquashEditorPanel } from "./squashEditorPanel";
@@ -154,6 +155,9 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				break;
 			case "amendCommit":
 				await this.handleAmendCommit(message.entry as ReflogEntry);
+				break;
+			case "undoLastCommit":
+				await this.handleUndoLastCommit(message.entry as ReflogEntry);
 				break;
 		}
 	}
@@ -492,6 +496,44 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		this.squashEditorPanel.show(repository, [entry], true, "amend");
+	}
+
+	private async handleUndoLastCommit(entry: ReflogEntry) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0) {
+			return;
+		}
+
+		const repository = entry.repoRoot
+			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
+			: git.repositories[0];
+
+		if (!repository) {
+			vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		const confirm = await vscode.window.showWarningMessage(
+			`Undo commit ${entry.hash.substring(0, 7)}? Changes will remain staged.`,
+			{ modal: true },
+			"Undo"
+		);
+
+		if (confirm !== "Undo") {
+			return;
+		}
+
+		try {
+			const { undoneCommitHash } = await performUndoLastCommit({ repository });
+			vscode.window.showInformationMessage(`Undid commit ${undoneCommitHash}`);
+			this.refresh();
+		} catch (error) {
+			console.error("Failed to undo commit:", error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			vscode.window.showErrorMessage(`Failed to undo commit: ${errorMessage}`);
+		}
 	}
 
 	private async handleSquashCommits(entries: ReflogEntry[], interactive: boolean) {

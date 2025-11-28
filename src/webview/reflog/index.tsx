@@ -209,6 +209,18 @@ function App() {
 		});
 	}, [entries]);
 
+	const handleUndoLastCommit = useCallback(() => {
+		const entry = entries[0];
+		if (!entry) {
+			return;
+		}
+
+		vscode.postMessage({
+			type: "undoLastCommit",
+			entry,
+		});
+	}, [entries]);
+
 	const handleOpenFileDiff = useCallback(
 		(file: string) => {
 			if (expandedFiles) {
@@ -280,9 +292,14 @@ function App() {
 			<ContextMenu triggerRef={listRef}>
 				<>
 					{focusedIndex === 0 && (
-						<ContextMenuItem className={styles.contextMenuItem} onClick={handleAmendCommit}>
-							Amend this commit
-						</ContextMenuItem>
+						<>
+							<ContextMenuItem className={styles.contextMenuItem} onClick={handleAmendCommit}>
+								Amend this commit
+							</ContextMenuItem>
+							<ContextMenuItem className={styles.contextMenuItem} onClick={handleUndoLastCommit}>
+								Undo this commit
+							</ContextMenuItem>
+						</>
 					)}
 					{isContiguous(selectedIndices) && selectedIndices.size > 1 && (
 						<>

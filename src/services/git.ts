@@ -324,6 +324,17 @@ export async function performAmendCommit({
 	return { newCommitHash, shortCommitHash };
 }
 
+export async function performUndoLastCommit({
+	repository,
+}: {
+	repository: Repository;
+}): Promise<{ undoneCommitHash: string }> {
+	const cwd = repository.rootUri.fsPath;
+	const undoneCommitHash = await runGit(["rev-parse", "--short", "HEAD"], cwd);
+	await runGit(["reset", "--soft", "HEAD~1"], cwd);
+	return { undoneCommitHash };
+}
+
 export type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
 
 export interface ReflogEntry {
