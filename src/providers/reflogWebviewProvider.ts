@@ -663,10 +663,6 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		await this.executeSimpleSquash(repository, entries, isHead);
 	}
 
-	private sendProgress(title: string, status: string, percent: number) {
-		this.view?.webview.postMessage({ type: "progress", title, status, percent });
-	}
-
 	private async executeSimpleSquash(
 		repository: Repository,
 		entries: ReflogEntry[],
@@ -687,31 +683,23 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		try {
-			this.sendProgress("Squashing commits", "Preparing...", 10);
-
 			if (isHead) {
-				this.sendProgress("Squashing commits", "Resetting to target commit...", 30);
 				await performSoftResetSquash({
 					repository,
 					oldestCommitHash: oldest.hash,
 					message,
 				});
-				this.sendProgress("Squashing commits", "Committing changes...", 80);
 			} else {
-				this.sendProgress("Squashing commits", "Starting interactive rebase...", 20);
 				await performRebaseSquash({
 					repository,
 					commitHashes: hashes,
 					message,
 				});
-				this.sendProgress("Squashing commits", "Finalizing rebase...", 80);
 			}
 
-			this.sendProgress("Squashing commits", "Complete!", 100);
 			vscode.window.showInformationMessage("Commits squashed successfully");
 			this.refresh();
 		} catch (error) {
-			this.sendProgress("Squashing commits", "Failed", 100);
 			console.error("Failed to squash commits:", error);
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			vscode.window.showErrorMessage(`Failed to squash commits: ${errorMessage}`);

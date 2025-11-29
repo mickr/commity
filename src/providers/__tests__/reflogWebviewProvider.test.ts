@@ -37,7 +37,7 @@ jest.mock("../../services/git", () => ({
 	ensureCleanWorkingTree: jest.fn().mockResolvedValue(true),
 }));
 
-describe("ReflogWebviewProvider Squash Tests", () => {
+describe("ReflogWebviewProvider", () => {
 	let provider: ReflogWebviewProvider;
 	let mockContext: any;
 	let mockExtensionUri: any;
@@ -59,6 +59,7 @@ describe("ReflogWebviewProvider Squash Tests", () => {
 			postMessage: jest.fn(),
 			asWebviewUri: jest.fn(),
 			cspSource: "csp-source",
+			title: "",
 		};
 
 		mockGitApi = {
@@ -74,7 +75,7 @@ describe("ReflogWebviewProvider Squash Tests", () => {
 		provider = new ReflogWebviewProvider(mockExtensionUri, mockContext);
 		// Initialize the view
 		provider.resolveWebviewView(
-			{ webview: mockWebview } as vscode.WebviewView,
+			{ webview: mockWebview, title: "" } as unknown as vscode.WebviewView,
 			{} as vscode.WebviewViewResolveContext,
 			{} as vscode.CancellationToken
 		);
@@ -84,6 +85,57 @@ describe("ReflogWebviewProvider Squash Tests", () => {
 		// Access private method via casting
 		await (provider as any).handleMessage(message);
 	};
+
+	const callUpdateReflog = async () => {
+		// Access private method via casting
+		await (provider as any).updateReflog();
+	};
+
+	describe("Protected Branch Detection", () => {
+		it("sends branch info with reflog data", async () => {
+			const mockRepo = { rootUri: { fsPath: "/repo1" } };
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
+			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([]);
+
+			await callUpdateReflog();
+
+			expect(mockWebview.postMessage).toHaveBeenCalledWith({
+				type: "reflogData",
+				entries: [],
+				branch: "main",
+			});
+		});
+
+		it("sends null branch when no repositories", async () => {
+			mockGitApi.repositories = [];
+
+			await callUpdateReflog();
+
+			expect(mockWebview.postMessage).toHaveBeenCalledWith({
+				type: "reflogData",
+				entries: [],
+				branch: null,
+			});
+		});
+
+		it("sends branch name for feature branches", async () => {
+			const mockRepo = { rootUri: { fsPath: "/repo1" } };
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("feature/my-feature");
+			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([]);
+
+			await callUpdateReflog();
+
+			expect(mockWebview.postMessage).toHaveBeenCalledWith({
+				type: "reflogData",
+				entries: [],
+				branch: "feature/my-feature",
+			});
+		});
+	});
+
+	describe("Squash Tests", () => {
 
 	it("fails if no git extension or repositories", async () => {
 		mockGitApi.repositories = [];
@@ -264,5 +316,6 @@ describe("ReflogWebviewProvider Squash Tests", () => {
 		expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
 			"Failed to squash commits: Squash failed"
 		);
+	});
 	});
 });
