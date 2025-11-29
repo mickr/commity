@@ -1,8 +1,8 @@
 import * as path from "node:path";
-import { tmpdir } from "node:os";
-import { writeFile, unlink } from "node:fs/promises";
+import * as fs from "node:fs";
 import { execFile, execFileSync, execSync } from "node:child_process";
 import { promisify } from "node:util";
+import * as git from "isomorphic-git";
 import type { Repository, Change } from "../types/git";
 
 const execFileAsync = promisify(execFile);
@@ -129,6 +129,14 @@ export function getCurrentAuthor(): string {
 	}
 }
 
+function getGitConfigValue(key: string, fallback: string): string {
+	try {
+		return execSync(`git config ${key}`, { encoding: "utf-8" }).trim();
+	} catch {
+		return fallback;
+	}
+}
+
 export class SquashError extends Error {
 	constructor(
 		message: string,
@@ -156,19 +164,19 @@ async function runGit(args: string[], cwd: string): Promise<string> {
 }
 
 export async function getHeadHash(repository: Repository): Promise<string> {
-	const cwd = repository.rootUri.fsPath;
+	const dir = repository.rootUri.fsPath;
 	try {
-		return await runGit(["rev-parse", "HEAD"], cwd);
+		return await git.resolveRef({ fs, dir, ref: "HEAD" });
 	} catch {
 		return "";
 	}
 }
 
 export async function getActualCurrentBranch(repository: Repository): Promise<string> {
-	const cwd = repository.rootUri.fsPath;
+	const dir = repository.rootUri.fsPath;
 	try {
-		const branch = await runGit(["rev-parse", "--abbrev-ref", "HEAD"], cwd);
-		return branch === "HEAD" ? "" : branch;
+		const branch = await git.currentBranch({ fs, dir });
+		return branch || "";
 	} catch {
 		return "";
 	}
@@ -216,18 +224,41 @@ export async function performSoftResetSquash({
 	oldestCommitHash: string;
 	message: string;
 }): Promise<{ newCommitHash: string; shortCommitHash: string }> {
-	const isClean = await ensureCleanWorkingTree(repository);
-	if (!isClean) {
-		throw new SquashError(
-			"Cannot squash: you have uncommitted changes. Commit or stash them first."
-		);
+	const dir = repository.rootUri.fsPath;
+
+	// Get the parent of the oldest commit (what we're resetting to)
+	const [parentCommit] = await git.log({
+		fs,
+		dir,
+		ref: oldestCommitHash,
+		depth: 2,
+	});
+
+	const parentOid = parentCommit.commit.parent[0];
+	if (!parentOid) {
+		throw new SquashError("Cannot squash: oldest commit has no parent");
 	}
 
-	const cwd = repository.rootUri.fsPath;
-	await runGit(["reset", "--soft", `${oldestCommitHash}^`], cwd);
-	await runGit(["commit", "-m", message], cwd);
-	const shortCommitHash = await runGit(["rev-parse", "--short", "HEAD"], cwd);
-	const newCommitHash = await runGit(["rev-parse", "HEAD"], cwd);
+	// Get current HEAD's tree (the state we want to keep)
+	const headOid = await git.resolveRef({ fs, dir, ref: "HEAD" });
+	const headCommit = await git.readCommit({ fs, dir, oid: headOid });
+	const treeOid = headCommit.commit.tree;
+
+	// Get author info (use shell command to read global config too)
+	const authorName = getGitConfigValue("user.name", "Unknown");
+	const authorEmail = getGitConfigValue("user.email", "unknown@unknown");
+
+	// Create new commit with the current tree but parent of oldest commit
+	const newCommitHash = await git.commit({
+		fs,
+		dir,
+		message,
+		author: { name: authorName, email: authorEmail },
+		tree: treeOid,
+		parent: [parentOid],
+	});
+
+	const shortCommitHash = newCommitHash.substring(0, 7);
 	return { newCommitHash, shortCommitHash };
 }
 
@@ -240,74 +271,79 @@ export async function performRebaseSquash({
 	commitHashes: string[];
 	message: string;
 }): Promise<{ newCommitHash: string; shortCommitHash: string }> {
-	const cwd = repository.rootUri.fsPath;
+	const dir = repository.rootUri.fsPath;
 	const oldestCommit = commitHashes[commitHashes.length - 1];
-	const newestCommit = commitHashes[0];
 
-	const commitBeforeOldest = `${oldestCommit}^`;
+	// Get the parent of the oldest commit (the base we're rebasing onto)
+	const [oldestCommitInfo] = await git.log({
+		fs,
+		dir,
+		ref: oldestCommit,
+		depth: 2,
+	});
 
-	const todoScript = commitHashes
-		.reverse()
-		.map((hash, index) => {
-			const action = index === 0 ? "pick" : "squash";
-			return `${action} ${hash}`;
-		})
-		.join("\n");
+	const baseParentOid = oldestCommitInfo.commit.parent[0];
+	if (!baseParentOid) {
+		throw new SquashError("Cannot squash: oldest commit has no parent");
+	}
 
-	const todoFile = path.join(tmpdir(), `commity-rebase-${Date.now()}.txt`);
-	const msgFile = path.join(tmpdir(), `commity-msg-${Date.now()}.txt`);
+	// Get current HEAD to find commits between oldest and HEAD that are NOT in the squash range
+	const headOid = await git.resolveRef({ fs, dir, ref: "HEAD" });
 
-	try {
-		await writeFile(todoFile, todoScript, "utf8");
-		await writeFile(msgFile, message, "utf8");
+	// Get all commits from HEAD back to the oldest commit's parent
+	const allCommits = await git.log({
+		fs,
+		dir,
+		ref: headOid,
+	});
 
-		const env = {
-			...process.env,
-			GIT_SEQUENCE_EDITOR: `cat "${todoFile}" >`,
-			GIT_EDITOR: `cat "${msgFile}" >`,
-		};
+	// Find commits that come after the squashed commits (between HEAD and newest squash commit)
+	const newestSquashCommit = commitHashes[0];
+	const commitsToReplay: Array<{ oid: string; commit: { tree: string; message: string; parent: string[] } }> = [];
+	let foundNewestSquash = false;
 
-		await execFileAsync("git", ["rebase", "-i", "--autosquash", commitBeforeOldest], {
-			cwd,
-			env,
-		});
-
-		const shortCommitHash = await runGit(["rev-parse", "--short", newestCommit], cwd);
-		const newCommitHash = await runGit(["rev-parse", newestCommit], cwd);
-
-		return { newCommitHash, shortCommitHash };
-	} catch (error) {
-		let abortError: Error | undefined;
-		try {
-			await runGit(["rebase", "--abort"], cwd);
-		} catch (abortErr) {
-			abortError = abortErr instanceof Error ? abortErr : new Error(String(abortErr));
-			console.error("Failed to abort rebase after squash failure:", abortError);
+	for (const commit of allCommits) {
+		if (commit.oid === newestSquashCommit) {
+			foundNewestSquash = true;
+			break;
 		}
-
-		if (error instanceof Error && "stderr" in error) {
-			const stderr =
-				typeof (error as { stderr?: string }).stderr === "string"
-					? (error as { stderr?: string }).stderr
-					: undefined;
-			const combinedStderr = abortError
-				? `${stderr || ""}\n\nWarning: Failed to abort rebase: ${abortError.message}`.trim()
-				: stderr;
-			throw new SquashError("Interactive rebase failed", combinedStderr);
-		}
-		throw error;
-	} finally {
-		try {
-			await unlink(todoFile);
-		} catch (cleanupError) {
-			console.error("Failed to cleanup todo file:", cleanupError);
-		}
-		try {
-			await unlink(msgFile);
-		} catch (cleanupError) {
-			console.error("Failed to cleanup message file:", cleanupError);
+		if (!foundNewestSquash) {
+			commitsToReplay.unshift(commit);
 		}
 	}
+
+	// Get the tree from the newest commit being squashed (preserves the final state of squashed commits)
+	const newestSquashCommitInfo = await git.readCommit({ fs, dir, oid: newestSquashCommit });
+	const squashedTreeOid = newestSquashCommitInfo.commit.tree;
+
+	// Get author info (use shell command to read global config too)
+	const authorName = getGitConfigValue("user.name", "Unknown");
+	const authorEmail = getGitConfigValue("user.email", "unknown@unknown");
+
+	// Create the squashed commit with the tree from newest squash commit
+	let newCommitHash = await git.commit({
+		fs,
+		dir,
+		message,
+		author: { name: authorName, email: authorEmail },
+		tree: squashedTreeOid,
+		parent: [baseParentOid],
+	});
+
+	// Replay any commits that came after the squashed commits
+	for (const commit of commitsToReplay) {
+		newCommitHash = await git.commit({
+			fs,
+			dir,
+			message: commit.commit.message,
+			author: { name: authorName, email: authorEmail },
+			tree: commit.commit.tree,
+			parent: [newCommitHash],
+		});
+	}
+
+	const shortCommitHash = newCommitHash.substring(0, 7);
+	return { newCommitHash, shortCommitHash };
 }
 
 export async function performAmendCommit({
@@ -317,10 +353,26 @@ export async function performAmendCommit({
 	repository: Repository;
 	message: string;
 }): Promise<{ newCommitHash: string; shortCommitHash: string }> {
-	const cwd = repository.rootUri.fsPath;
-	await runGit(["commit", "--amend", "-m", message], cwd);
-	const shortCommitHash = await runGit(["rev-parse", "--short", "HEAD"], cwd);
-	const newCommitHash = await runGit(["rev-parse", "HEAD"], cwd);
+	const dir = repository.rootUri.fsPath;
+
+	const headOid = await git.resolveRef({ fs, dir, ref: "HEAD" });
+	const headCommit = await git.readCommit({ fs, dir, oid: headOid });
+	const treeOid = headCommit.commit.tree;
+	const parentOids = headCommit.commit.parent;
+
+	const authorName = getGitConfigValue("user.name", "Unknown");
+	const authorEmail = getGitConfigValue("user.email", "unknown@unknown");
+
+	const newCommitHash = await git.commit({
+		fs,
+		dir,
+		message,
+		author: { name: authorName, email: authorEmail },
+		tree: treeOid,
+		parent: parentOids,
+	});
+
+	const shortCommitHash = newCommitHash.substring(0, 7);
 	return { newCommitHash, shortCommitHash };
 }
 

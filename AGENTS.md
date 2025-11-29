@@ -19,6 +19,7 @@
 - **Types**: `src/types/` - TypeScript interfaces and Zod schemas
 - Uses VS Code Git extension API for repository interactions
 - AI providers in `src/services/ai-providers/` (Fireworks, mock)
+- **Git operations**: Prefer `isomorphic-git` over spawning git commands to avoid shell escaping issues with multi-line messages
 
 ## AI Model Configuration
 

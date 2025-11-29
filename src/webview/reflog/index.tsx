@@ -20,6 +20,7 @@ interface Message {
 	files?: FileInfo[];
 	parentHash?: string;
 	isCollapsed?: boolean;
+	message?: string;
 }
 
 interface VSCodeAPI {
@@ -41,6 +42,11 @@ function App() {
 		parentHash?: string;
 		isCollapsed?: boolean;
 	} | null>(null);
+	const [progress, setProgress] = useState<{
+		title: string;
+		status: string;
+		percent: number;
+	} | null>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const appRef = useRef<HTMLDivElement>(null);
 
@@ -49,8 +55,11 @@ function App() {
 			const message = event.data;
 			if (message.type === "reflogData") {
 				setEntries(message.entries || []);
+				setSelectedIndices(new Set());
+				setFirstClickIndex(null);
 				setFocusedIndex(0);
 				setExpandedFiles(null);
+				setProgress(null);
 
 				requestAnimationFrame(() => {
 					appRef.current?.focus();
@@ -62,6 +71,18 @@ function App() {
 					parentHash: message.parentHash,
 					isCollapsed: message.isCollapsed ?? false,
 				});
+			} else if (message.type === "progress") {
+				const { title, status, percent } = message as {
+					type: string;
+					title: string;
+					status: string;
+					percent: number;
+				};
+				if (percent >= 100) {
+					setProgress(null);
+				} else {
+					setProgress({ title, status, percent });
+				}
 			}
 		};
 
@@ -324,6 +345,21 @@ function App() {
 					)}
 				</>
 			</ContextMenu>
+
+			{progress && (
+				<div className={styles.progressOverlay}>
+					<div className={styles.progressCard}>
+						<div className={styles.progressTitle}>{progress.title}</div>
+						<div className={styles.progressBarContainer}>
+							<div
+								className={styles.progressBar}
+								style={{ width: `${progress.percent}%` }}
+							/>
+						</div>
+						<div className={styles.progressStatus}>{progress.status}</div>
+					</div>
+				</div>
+			)}
 		</KeymapProvider>
 	);
 }

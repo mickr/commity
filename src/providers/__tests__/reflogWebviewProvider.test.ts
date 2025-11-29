@@ -175,7 +175,7 @@ describe("ReflogWebviewProvider Squash Tests", () => {
 		expect(gitService.performSoftResetSquash).toHaveBeenCalledWith({
 			repository: mockRepo,
 			oldestCommitHash: "hash3",
-			message: "Newest\n\nMiddle\n\nOldest",
+			message: "Oldest\n\nMiddle\n\nNewest",
 		});
 		expect(gitService.performRebaseSquash).not.toHaveBeenCalled();
 		expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
@@ -205,7 +205,7 @@ describe("ReflogWebviewProvider Squash Tests", () => {
 		expect(gitService.performRebaseSquash).toHaveBeenCalledWith({
 			repository: mockRepo,
 			commitHashes: ["hash1", "hash2"],
-			message: "Newest\n\nOldest",
+			message: "Oldest\n\nNewest",
 		});
 		expect(gitService.performSoftResetSquash).not.toHaveBeenCalled();
 		expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(

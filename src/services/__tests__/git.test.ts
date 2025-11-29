@@ -23,6 +23,17 @@ jest.mock("node:util", () => ({
 	promisify: jest.fn(() => mockExecFileAsync),
 }));
 
+const mockIsomorphicGit = {
+	log: jest.fn(),
+	resolveRef: jest.fn(),
+	readCommit: jest.fn(),
+	getConfig: jest.fn(),
+	commit: jest.fn(),
+	currentBranch: jest.fn(),
+};
+
+jest.mock("isomorphic-git", () => mockIsomorphicGit);
+
 import * as vscode from "vscode";
 import {
 	getStagedChangesPaths,
@@ -541,7 +552,7 @@ describe("getActualCurrentBranch", () => {
 	});
 
 	it("returns branch name when on a branch", async () => {
-		mockExecFileAsync.mockResolvedValue({ stdout: "feature/test\n" });
+		mockIsomorphicGit.currentBranch.mockResolvedValue("feature/test");
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
@@ -549,13 +560,14 @@ describe("getActualCurrentBranch", () => {
 
 		const result = await getActualCurrentBranch(mockRepository);
 		expect(result).toBe("feature/test");
-		expect(mockExecFileAsync).toHaveBeenCalledWith("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-			cwd: "/project",
+		expect(mockIsomorphicGit.currentBranch).toHaveBeenCalledWith({
+			fs: expect.anything(),
+			dir: "/project",
 		});
 	});
 
 	it("returns empty string when in detached HEAD state", async () => {
-		mockExecFileAsync.mockResolvedValue({ stdout: "HEAD\n" });
+		mockIsomorphicGit.currentBranch.mockResolvedValue(undefined);
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
@@ -566,7 +578,7 @@ describe("getActualCurrentBranch", () => {
 	});
 
 	it("returns empty string on git error", async () => {
-		mockExecFileAsync.mockRejectedValue(new Error("Not a git repository"));
+		mockIsomorphicGit.currentBranch.mockRejectedValue(new Error("Not a git repository"));
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
@@ -580,23 +592,39 @@ describe("getActualCurrentBranch", () => {
 describe("performSoftResetSquash", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
+
+		mockIsomorphicGit.log.mockResolvedValue([
+			{
+				oid: "def5678",
+				commit: {
+					parent: ["parent123"],
+					tree: "tree456",
+				},
+			},
+		]);
+		mockIsomorphicGit.resolveRef.mockResolvedValue("headcommit789");
+		mockIsomorphicGit.readCommit.mockResolvedValue({
+			oid: "headcommit789",
+			commit: {
+				tree: "currenttree123",
+				parent: ["parent123"],
+			},
+		});
+		mockIsomorphicGit.getConfig.mockImplementation(({ path }: { path: string }) => {
+			if (path === "user.name") {
+				return Promise.resolve("Test User");
+			}
+			if (path === "user.email") {
+				return Promise.resolve("test@example.com");
+			}
+			return Promise.resolve(undefined);
+		});
+		mockIsomorphicGit.commit.mockResolvedValue("newcommit1234567890");
 	});
 
-	it("performs soft reset and commits with new message", async () => {
-		mockExecFileAsync
-			.mockResolvedValueOnce({ stdout: "" })
-			.mockResolvedValueOnce({ stdout: "" })
-			.mockResolvedValueOnce({ stdout: "abc1234\n" })
-			.mockResolvedValueOnce({ stdout: "abc1234567890\n" });
-
+	it("performs squash using isomorphic-git", async () => {
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
-			state: {
-				indexChanges: [],
-				workingTreeChanges: [],
-				untrackedChanges: [],
-				mergeChanges: [],
-			},
 		} as unknown as Repository;
 
 		const result = await performSoftResetSquash({
@@ -606,42 +634,57 @@ describe("performSoftResetSquash", () => {
 		});
 
 		expect(result).toEqual({
-			shortCommitHash: "abc1234",
-			newCommitHash: "abc1234567890",
+			shortCommitHash: "newcomm",
+			newCommitHash: "newcommit1234567890",
 		});
 
-		expect(mockExecFileAsync).toHaveBeenNthCalledWith(1, "git", ["reset", "--soft", "def5678^"], {
-			cwd: "/project",
-		});
-		expect(mockExecFileAsync).toHaveBeenNthCalledWith(
-			2,
-			"git",
-			["commit", "-m", "Squashed commit"],
-			{
-				cwd: "/project",
-			}
+		expect(mockIsomorphicGit.log).toHaveBeenCalledWith(
+			expect.objectContaining({
+				dir: "/project",
+				ref: "def5678",
+				depth: 2,
+			})
 		);
-		expect(mockExecFileAsync).toHaveBeenNthCalledWith(3, "git", ["rev-parse", "--short", "HEAD"], {
-			cwd: "/project",
-		});
-		expect(mockExecFileAsync).toHaveBeenNthCalledWith(4, "git", ["rev-parse", "HEAD"], {
-			cwd: "/project",
-		});
+
+		expect(mockIsomorphicGit.commit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				dir: "/project",
+				message: "Squashed commit",
+				tree: "currenttree123",
+				parent: ["parent123"],
+			})
+		);
 	});
 
-	it("throws SquashError when reset fails", async () => {
-		const gitError = new Error("reset failed");
-		(gitError as { stderr?: string }).stderr = "fatal: ambiguous argument";
-		mockExecFileAsync.mockRejectedValue(gitError);
+	it("throws SquashError when oldest commit has no parent", async () => {
+		mockIsomorphicGit.log.mockResolvedValue([
+			{
+				oid: "def5678",
+				commit: {
+					parent: [],
+					tree: "tree456",
+				},
+			},
+		]);
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
-			state: {
-				indexChanges: [],
-				workingTreeChanges: [],
-				untrackedChanges: [],
-				mergeChanges: [],
-			},
+		} as unknown as Repository;
+
+		await expect(
+			performSoftResetSquash({
+				repository: mockRepository,
+				oldestCommitHash: "def5678",
+				message: "Test",
+			})
+		).rejects.toThrow("oldest commit has no parent");
+	});
+
+	it("throws when isomorphic-git fails", async () => {
+		mockIsomorphicGit.log.mockRejectedValue(new Error("git log failed"));
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
 		await expect(
@@ -650,86 +693,71 @@ describe("performSoftResetSquash", () => {
 				oldestCommitHash: "invalid",
 				message: "Test",
 			})
-		).rejects.toThrow(SquashError);
-	});
-
-	it("throws SquashError when commit fails", async () => {
-		mockExecFileAsync.mockResolvedValueOnce({ stdout: "" });
-
-		const gitError = new Error("commit failed");
-		(gitError as { stderr?: string }).stderr = "nothing to commit";
-		mockExecFileAsync.mockRejectedValueOnce(gitError);
-
-		const mockRepository = {
-			rootUri: vscode.Uri.file("/project"),
-			state: {
-				indexChanges: [],
-				workingTreeChanges: [],
-				untrackedChanges: [],
-				mergeChanges: [],
-			},
-		} as unknown as Repository;
-
-		await expect(
-			performSoftResetSquash({
-				repository: mockRepository,
-				oldestCommitHash: "def5678",
-				message: "Test",
-			})
-		).rejects.toThrow(SquashError);
-	});
-
-	it("throws SquashError when working tree is dirty", async () => {
-		const mockRepository = {
-			rootUri: vscode.Uri.file("/project"),
-			state: {
-				indexChanges: [{ uri: vscode.Uri.file("/project/file.ts") }],
-				workingTreeChanges: [],
-				untrackedChanges: [],
-				mergeChanges: [],
-			},
-		} as unknown as Repository;
-
-		await expect(
-			performSoftResetSquash({
-				repository: mockRepository,
-				oldestCommitHash: "def5678",
-				message: "Test",
-			})
-		).rejects.toThrow(SquashError);
-
-		await expect(
-			performSoftResetSquash({
-				repository: mockRepository,
-				oldestCommitHash: "def5678",
-				message: "Test",
-			})
-		).rejects.toThrow("uncommitted changes");
-
-		expect(mockExecFileAsync).not.toHaveBeenCalled();
+		).rejects.toThrow("git log failed");
 	});
 });
 
 describe("performRebaseSquash", () => {
-	let writeFileMock: jest.Mock;
-	let unlinkMock: jest.Mock;
-
 	beforeEach(() => {
 		jest.clearAllMocks();
-		writeFileMock = jest.fn().mockResolvedValue(undefined);
-		unlinkMock = jest.fn().mockResolvedValue(undefined);
 
-		jest.doMock("node:fs/promises", () => ({
-			writeFile: writeFileMock,
-			unlink: unlinkMock,
-		}));
+		mockIsomorphicGit.log.mockResolvedValue([
+			{
+				oid: "oldest123",
+				commit: {
+					parent: ["parent123"],
+					tree: "oldtree456",
+					message: "old commit",
+				},
+			},
+		]);
+		mockIsomorphicGit.resolveRef.mockResolvedValue("headcommit789");
+		mockIsomorphicGit.readCommit.mockResolvedValue({
+			oid: "newest123",
+			commit: {
+				tree: "newesttree123",
+				parent: ["middle123"],
+				message: "newest commit",
+			},
+		});
+		mockIsomorphicGit.getConfig.mockImplementation(({ path }: { path: string }) => {
+			if (path === "user.name") {
+				return Promise.resolve("Test User");
+			}
+			if (path === "user.email") {
+				return Promise.resolve("test@example.com");
+			}
+			return Promise.resolve(undefined);
+		});
+		mockIsomorphicGit.commit.mockResolvedValue("newcommit1234567890");
 	});
 
-	it("performs interactive rebase squash successfully", async () => {
-		mockExecFileAsync
-			.mockResolvedValueOnce({ stdout: "" })
-			.mockResolvedValueOnce({ stdout: "abc1234\n" })
-			.mockResolvedValueOnce({ stdout: "abc1234567890\n" });
+	it("performs rebase squash using isomorphic-git", async () => {
+		mockIsomorphicGit.log
+			.mockResolvedValueOnce([
+				{
+					oid: "oldest123",
+					commit: {
+						parent: ["parent123"],
+						tree: "oldtree456",
+						message: "old commit",
+					},
+				},
+			])
+			.mockResolvedValueOnce([
+				{
+					oid: "newest123",
+					commit: { tree: "tree1", message: "newest", parent: ["middle123"] },
+				},
+				{
+					oid: "middle123",
+					commit: { tree: "tree2", message: "middle", parent: ["oldest123"] },
+				},
+				{
+					oid: "oldest123",
+					commit: { tree: "tree3", message: "oldest", parent: ["parent123"] },
+				},
+			]);
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
@@ -737,36 +765,60 @@ describe("performRebaseSquash", () => {
 
 		const result = await performRebaseSquash({
 			repository: mockRepository,
-			commitHashes: ["newest", "middle", "oldest"],
+			commitHashes: ["newest123", "middle123", "oldest123"],
 			message: "Squashed commits",
 		});
 
 		expect(result).toEqual({
-			shortCommitHash: "abc1234",
-			newCommitHash: "abc1234567890",
+			shortCommitHash: "newcomm",
+			newCommitHash: "newcommit1234567890",
 		});
 
-		expect(mockExecFileAsync).toHaveBeenCalledWith(
-			"git",
-			["rebase", "-i", "--autosquash", "oldest^"],
+		expect(mockIsomorphicGit.log).toHaveBeenCalledWith(
 			expect.objectContaining({
-				cwd: "/project",
-				env: expect.objectContaining({
-					GIT_SEQUENCE_EDITOR: expect.stringContaining("cat"),
-					GIT_EDITOR: expect.stringContaining("cat"),
-				}),
+				dir: "/project",
+				ref: "oldest123",
+				depth: 2,
+			})
+		);
+
+		expect(mockIsomorphicGit.commit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				dir: "/project",
+				message: "Squashed commits",
+				tree: "newesttree123",
+				parent: ["parent123"],
 			})
 		);
 	});
 
-	it("aborts rebase on failure", async () => {
-		const gitError = new Error("rebase failed");
-		(gitError as { stderr?: string }).stderr = "Could not apply";
-		mockExecFileAsync.mockRejectedValueOnce(gitError);
+	it("throws SquashError when oldest commit has no parent", async () => {
+		mockIsomorphicGit.log.mockResolvedValue([
+			{
+				oid: "oldest123",
+				commit: {
+					parent: [],
+					tree: "tree456",
+					message: "old commit",
+				},
+			},
+		]);
 
-		const abortMock = jest.fn().mockResolvedValue({ stdout: "" });
-		mockExecFileAsync.mockImplementationOnce(() => Promise.reject(gitError));
-		mockExecFileAsync.mockImplementationOnce(abortMock);
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		await expect(
+			performRebaseSquash({
+				repository: mockRepository,
+				commitHashes: ["newest", "oldest123"],
+				message: "Test",
+			})
+		).rejects.toThrow("oldest commit has no parent");
+	});
+
+	it("throws when isomorphic-git fails", async () => {
+		mockIsomorphicGit.log.mockRejectedValue(new Error("git log failed"));
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
@@ -778,53 +830,72 @@ describe("performRebaseSquash", () => {
 				commitHashes: ["hash1", "hash2"],
 				message: "Test",
 			})
-		).rejects.toThrow(SquashError);
+		).rejects.toThrow("git log failed");
 	});
 
-	it("includes abort failure in error when abort fails", async () => {
-		const gitError = new Error("rebase failed");
-		(gitError as { stderr?: string }).stderr = "Could not apply";
+	it("replays commits after the squashed range", async () => {
+		mockIsomorphicGit.log
+			.mockResolvedValueOnce([
+				{
+					oid: "oldest123",
+					commit: {
+						parent: ["parent123"],
+						tree: "oldtree456",
+						message: "old commit",
+					},
+				},
+			])
+			.mockResolvedValueOnce([
+				{
+					oid: "aftercommit1",
+					commit: { tree: "aftertree1", message: "after 1", parent: ["newest123"] },
+				},
+				{
+					oid: "newest123",
+					commit: { tree: "tree1", message: "newest", parent: ["oldest123"] },
+				},
+				{
+					oid: "oldest123",
+					commit: { tree: "tree2", message: "oldest", parent: ["parent123"] },
+				},
+			]);
 
-		const abortError = new Error("abort failed");
-		(abortError as { stderr?: string }).stderr = "fatal: no rebase in progress";
-
-		mockExecFileAsync
-			.mockImplementationOnce(() => Promise.reject(gitError))
-			.mockImplementationOnce(() => Promise.reject(abortError));
+		mockIsomorphicGit.commit
+			.mockResolvedValueOnce("squashedcommit123")
+			.mockResolvedValueOnce("replayedcommit456");
 
 		const mockRepository = {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const error = await performRebaseSquash({
+		const result = await performRebaseSquash({
 			repository: mockRepository,
-			commitHashes: ["hash1", "hash2"],
-			message: "Test",
-		}).catch((e) => e);
-
-		expect(error).toBeInstanceOf(SquashError);
-		expect((error as SquashError).stderr).toContain("Could not apply");
-		expect((error as SquashError).stderr).toContain("Failed to abort rebase");
-		expect((error as SquashError).stderr).toContain("abort failed");
-	});
-
-	it("creates todo script with correct format", async () => {
-		mockExecFileAsync
-			.mockResolvedValueOnce({ stdout: "" })
-			.mockResolvedValueOnce({ stdout: "abc1234\n" })
-			.mockResolvedValueOnce({ stdout: "abc1234567890\n" });
-
-		const mockRepository = {
-			rootUri: vscode.Uri.file("/project"),
-		} as unknown as Repository;
-
-		await performRebaseSquash({
-			repository: mockRepository,
-			commitHashes: ["hash3", "hash2", "hash1"],
+			commitHashes: ["newest123", "oldest123"],
 			message: "Squashed",
 		});
 
-		const rebaseCall = mockExecFileAsync.mock.calls.find((call) => call[1]?.[0] === "rebase");
-		expect(rebaseCall).toBeDefined();
+		expect(result).toEqual({
+			shortCommitHash: "replaye",
+			newCommitHash: "replayedcommit456",
+		});
+
+		expect(mockIsomorphicGit.commit).toHaveBeenCalledTimes(2);
+
+		expect(mockIsomorphicGit.commit).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({
+				message: "Squashed",
+				parent: ["parent123"],
+			})
+		);
+
+		expect(mockIsomorphicGit.commit).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({
+				message: "after 1",
+				tree: "aftertree1",
+				parent: ["squashedcommit123"],
+			})
+		);
 	});
 });
