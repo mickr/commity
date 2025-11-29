@@ -35,6 +35,7 @@ jest.mock("../../services/git", () => ({
 	performRebaseSquash: jest.fn(),
 	getHeadHash: jest.fn(),
 	ensureCleanWorkingTree: jest.fn().mockResolvedValue(true),
+	performCherryPick: jest.fn(),
 }));
 
 describe("ReflogWebviewProvider", () => {
@@ -317,5 +318,247 @@ describe("ReflogWebviewProvider", () => {
 			"Failed to squash commits: Squash failed"
 		);
 	});
+	});
+
+	describe("Checkout Tests", () => {
+		it("fails if no git repositories", async () => {
+			mockGitApi.repositories = [];
+
+			await callHandleMessage({
+				type: "checkoutCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith("No Git repository found");
+		});
+
+		it("fails if repository not found", async () => {
+			mockGitApi.repositories = [{ rootUri: { fsPath: "/different-repo" } }];
+
+			await callHandleMessage({
+				type: "checkoutCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith("Repository not found");
+		});
+
+		it("does nothing if user cancels confirmation", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				checkout: jest.fn(),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
+
+			await callHandleMessage({
+				type: "checkoutCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(mockRepo.checkout).not.toHaveBeenCalled();
+		});
+
+		it("checks out commit when user confirms", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				checkout: jest.fn().mockResolvedValue(undefined),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Checkout");
+
+			await callHandleMessage({
+				type: "checkoutCommit",
+				entry: { hash: "abc123def", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(mockRepo.checkout).toHaveBeenCalledWith("abc123def");
+			expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+				"Checked out commit abc123d"
+			);
+		});
+
+		it("shows error when checkout fails", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				checkout: jest.fn().mockRejectedValue(new Error("Checkout failed")),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Checkout");
+
+			await callHandleMessage({
+				type: "checkoutCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+				"Failed to checkout commit: Checkout failed"
+			);
+		});
+	});
+
+	describe("Cherry-pick Tests", () => {
+		it("fails if no git repositories", async () => {
+			mockGitApi.repositories = [];
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith("No Git repository found");
+		});
+
+		it("fails if no branches available", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				getBranches: jest.fn().mockResolvedValue([]),
+			};
+			mockGitApi.repositories = [mockRepo];
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith("No local branches found");
+		});
+
+		it("fails if no other branches besides current", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				getBranches: jest.fn().mockResolvedValue([{ name: "main" }]),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+				"No other branches available to cherry-pick to"
+			);
+		});
+
+		it("does nothing if user cancels branch selection", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				getBranches: jest.fn().mockResolvedValue([{ name: "main" }, { name: "feature" }]),
+				checkout: jest.fn(),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
+			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue(undefined);
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(mockRepo.checkout).not.toHaveBeenCalled();
+		});
+
+		it("fails if working tree is dirty", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				getBranches: jest.fn().mockResolvedValue([{ name: "main" }, { name: "feature" }]),
+				checkout: jest.fn(),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
+			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
+			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(false);
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+				"Cannot cherry-pick: you have uncommitted changes. Commit or stash them first."
+			);
+			expect(mockRepo.checkout).not.toHaveBeenCalled();
+		});
+
+		it("cherry-picks commit to selected branch", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				getBranches: jest.fn().mockResolvedValue([{ name: "main" }, { name: "feature" }]),
+				checkout: jest.fn().mockResolvedValue(undefined),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
+			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
+			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(true);
+			(gitService.performCherryPick as jest.Mock).mockResolvedValue({
+				newCommitHash: "newdef456",
+				shortCommitHash: "newdef4",
+			});
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123def", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(mockRepo.checkout).toHaveBeenCalledWith("feature");
+			expect(gitService.performCherryPick).toHaveBeenCalledWith({
+				repository: mockRepo,
+				targetHash: "abc123def",
+			});
+			expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+				"Cherry-picked abc123d to feature as newdef4"
+			);
+		});
+
+		it("shows error when cherry-pick fails", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				getBranches: jest.fn().mockResolvedValue([{ name: "main" }, { name: "feature" }]),
+				checkout: jest.fn().mockResolvedValue(undefined),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
+			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
+			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(true);
+			(gitService.performCherryPick as jest.Mock).mockRejectedValue(
+				new Error("Cherry-pick failed")
+			);
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+				"Failed to cherry-pick commit: Cherry-pick failed"
+			);
+		});
+
+		it("shows conflict message when cherry-pick has conflicts", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo1" },
+				getBranches: jest.fn().mockResolvedValue([{ name: "main" }, { name: "feature" }]),
+				checkout: jest.fn().mockResolvedValue(undefined),
+			};
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
+			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
+			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(true);
+
+			const conflictError = new Error("Cherry-pick failed") as Error & { stderr?: string };
+			conflictError.stderr = "CONFLICT (content): Merge conflict in file.txt";
+			(gitService.performCherryPick as jest.Mock).mockRejectedValue(conflictError);
+
+			await callHandleMessage({
+				type: "cherryPickCommit",
+				entry: { hash: "abc123", message: "test", repoRoot: "/repo1" },
+			});
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+				"Cherry-pick caused merge conflicts. Resolve the conflicts and commit the changes manually."
+			);
+		});
 	});
 });

@@ -27,6 +27,7 @@ export class SquashEditorPanel {
 	private pendingOperation?: PendingOperation;
 	private completeEmitter = new vscode.EventEmitter<void>();
 	readonly onDidComplete = this.completeEmitter.event;
+	private abortController?: AbortController;
 
 	constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -84,6 +85,9 @@ export class SquashEditorPanel {
 				case "generateMessage":
 					await this.generateMessage(message.data.commits);
 					break;
+				case "abortGeneration":
+					this.abortController?.abort();
+					break;
 				case "cancel":
 					this.panel?.dispose();
 					break;
@@ -125,9 +129,10 @@ export class SquashEditorPanel {
 		};
 
 		let message = "";
+		this.abortController = new AbortController();
 
 		try {
-			for await (const chunk of client.streamSquashMessage(request)) {
+			for await (const chunk of client.streamSquashMessage(request, this.abortController.signal)) {
 				message += chunk;
 				this.panel?.webview.postMessage({
 					type: "messageChunk",
@@ -140,11 +145,20 @@ export class SquashEditorPanel {
 				data: { message },
 			});
 		} catch (error) {
-			console.error("Failed to generate message:", error);
-			this.panel?.webview.postMessage({
-				type: "messageError",
-				data: { error: error instanceof Error ? error.message : "Unknown error" },
-			});
+			if (error instanceof Error && error.name === "AbortError") {
+				this.panel?.webview.postMessage({
+					type: "messageAborted",
+					data: { message },
+				});
+			} else {
+				console.error("Failed to generate message:", error);
+				this.panel?.webview.postMessage({
+					type: "messageError",
+					data: { error: error instanceof Error ? error.message : "Unknown error" },
+				});
+			}
+		} finally {
+			this.abortController = undefined;
 		}
 	}
 
@@ -197,6 +211,9 @@ export class SquashEditorPanel {
 		const styleUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(this.extensionUri, "out", "webview", "squash-editor", "index.css")
 		);
+		const codiconsUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(this.extensionUri, "node_modules", "@vscode", "codicons", "dist", "codicon.css")
+		);
 
 		const nonce = randomBytes(16).toString("base64url");
 
@@ -205,8 +222,9 @@ export class SquashEditorPanel {
 			<head>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 				<link href="${styleUri}" rel="stylesheet">
+				<link href="${codiconsUri}" rel="stylesheet">
 				<title>Edit Commit</title>
 				<style>
 					body {

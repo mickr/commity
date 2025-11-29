@@ -3,7 +3,20 @@ import { createRoot } from "react-dom/client";
 import styles from "./squash-editor.module.css";
 import { CommityIcon } from "../components/icons/CommityIcon";
 
-type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
+type CommitType =
+	| "feat"
+	| "fix"
+	| "docs"
+	| "style"
+	| "refactor"
+	| "perf"
+	| "test"
+	| "chore"
+	| "ci"
+	| "build"
+	| "revert"
+	| "merge"
+	| "other";
 type EditorMode = "squash" | "amend";
 
 interface Commit {
@@ -72,6 +85,9 @@ function App() {
 						setMessage(msg.data.message);
 					}
 					break;
+				case "messageAborted":
+					setIsGenerating(false);
+					break;
 				case "messageError":
 					setIsGenerating(false);
 					break;
@@ -106,10 +122,14 @@ function App() {
 	);
 
 	const handleGenerateMessage = useCallback(() => {
-		setIsGenerating(true);
-		setMessage("");
-		vscode.postMessage({ type: "generateMessage", data: { commits } });
-	}, [commits]);
+		if (isGenerating) {
+			vscode.postMessage({ type: "abortGeneration" });
+		} else {
+			setIsGenerating(true);
+			setMessage("");
+			vscode.postMessage({ type: "generateMessage", data: { commits } });
+		}
+	}, [commits, isGenerating]);
 
 	const handleMouseMove = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
 		const btn = e.currentTarget;
@@ -153,16 +173,16 @@ function App() {
 						>
 							<div className={styles.commitMain}>
 								{commit.commitType && (
-									<span className={`${styles.commitType} ${styles[`type${commit.commitType.charAt(0).toUpperCase()}${commit.commitType.slice(1)}`]}`}>
+									<span
+										className={`${styles.commitType} ${styles[`type${commit.commitType.charAt(0).toUpperCase()}${commit.commitType.slice(1)}`]}`}
+									>
 										{commit.commitType}
 									</span>
 								)}
 								<span className={styles.commitMessage}>{commit.message}</span>
 							</div>
 							<div className={styles.commitMeta}>
-								{commit.author && (
-									<span className={styles.commitAuthor}>{commit.author.name}</span>
-								)}
+								{commit.author && <span className={styles.commitAuthor}>{commit.author.name}</span>}
 								<span className={styles.commitHash}>{commit.hash.substring(0, 7)}</span>
 								{(commit.totalAdditions !== undefined || commit.totalDeletions !== undefined) && (
 									<span className={styles.commitStats}>
@@ -180,12 +200,16 @@ function App() {
 				<div className={styles.editorHeader}>
 					<label htmlFor="commit-message">New commit message:</label>
 					<button
-						className={styles.generateBtn}
+						className={`${styles.generateBtn} ${isGenerating ? styles.generating : ""}`}
 						onClick={handleGenerateMessage}
 						onMouseMove={handleMouseMove}
-						disabled={isGenerating}
 					>
-						<CommityIcon size={14} /> {isGenerating ? "Generating..." : "Generate message"}
+						{isGenerating ? (
+							<i className={`codicon codicon-debug-stop ${styles.stopIcon}`} />
+						) : (
+							<CommityIcon size={14} />
+						)}{" "}
+						Generate message
 					</button>
 				</div>
 				<textarea

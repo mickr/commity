@@ -297,7 +297,9 @@
 	margin-left: auto;
 	background: var(--vscode-badge-background);
 	color: var(--vscode-badge-foreground);
-	border: none;
+	border-color: var(--vscode-widget-border);
+	border-width: 1px;
+	border-style: solid;
 	border-radius: 4px;
 	font-family: var(--vscode-editor-font-family);
 	font-size: 11px;
@@ -318,10 +320,6 @@
 
 .entryFiles svg {
 	transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.entryFiles.expanded {
-	background: var(--vscode-focusBorder);
 }
 
 .entryFiles.expanded svg {
@@ -586,14 +584,13 @@
 	align-items: center;
 	gap: 8px;
 	padding: 6px 12px;
-	background:
-		repeating-linear-gradient(
-			-45deg,
-			transparent,
-			transparent 6px,
-			rgba(204, 170, 0, 0.08) 6px,
-			rgba(204, 170, 0, 0.08) 12px
-		);
+	background: repeating-linear-gradient(
+		-45deg,
+		transparent,
+		transparent 6px,
+		rgba(204, 170, 0, 0.08) 6px,
+		rgba(204, 170, 0, 0.08) 12px
+	);
 	border-bottom: 1px solid rgba(204, 170, 0, 0.25);
 	color: var(--vscode-descriptionForeground);
 	font-size: 11px;

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 
-interface KeymapProviderProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onSelect"> {
+interface KeymapProviderProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onSelect" | "onToggle"> {
 	children: React.ReactNode;
 	itemCount: number;
 	focusedIndex: number;
