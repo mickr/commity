@@ -387,6 +387,21 @@ export async function performUndoLastCommit({
 	return { undoneCommitHash };
 }
 
+export type ResetMode = "soft" | "mixed" | "hard";
+
+export async function performReset({
+	repository,
+	targetHash,
+	mode,
+}: {
+	repository: Repository;
+	targetHash: string;
+	mode: ResetMode;
+}): Promise<void> {
+	const cwd = repository.rootUri.fsPath;
+	await runGit(["reset", `--${mode}`, targetHash], cwd);
+}
+
 export type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
 
 export interface ReflogEntry {

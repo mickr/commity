@@ -609,3 +609,32 @@
 	font-size: 11px;
 	color: var(--vscode-descriptionForeground);
 }
+
+/* Protected branch warning banner */
+.protectedBranchWarning {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 12px;
+	background:
+		repeating-linear-gradient(
+			-45deg,
+			transparent,
+			transparent 6px,
+			rgba(204, 170, 0, 0.08) 6px,
+			rgba(204, 170, 0, 0.08) 12px
+		);
+	border-bottom: 1px solid rgba(204, 170, 0, 0.25);
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+}
+
+.protectedBranchWarning svg {
+	opacity: 0.5;
+	color: rgb(204, 170, 0);
+}
+
+.protectedBranchWarning strong {
+	font-weight: 500;
+	color: var(--vscode-foreground);
+}

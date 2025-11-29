@@ -10,6 +10,8 @@ import {
 	getHeadHash,
 	ensureCleanWorkingTree,
 	performUndoLastCommit,
+	performReset,
+	type ResetMode,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 import { SquashEditorPanel } from "./squashEditorPanel";
@@ -87,13 +89,14 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		const git = gitExtension?.getAPI(1);
 
 		if (!git || git.repositories.length === 0) {
-			this.view?.webview.postMessage({ type: "reflogData", entries: [] });
+			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null });
 			return;
 		}
 
 		const primaryRepo = this.getPrimaryRepository(git.repositories);
+		let branch: string | null = null;
 		if (primaryRepo && this.view) {
-			const branch = await getActualCurrentBranch(primaryRepo);
+			branch = await getActualCurrentBranch(primaryRepo);
 			this.view.title = branch ? `Reflog (${branch})` : "Reflog";
 		}
 
@@ -104,7 +107,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			entries.push(...entriesWithRepo);
 		}
 
-		this.view?.webview.postMessage({ type: "reflogData", entries });
+		this.view?.webview.postMessage({ type: "reflogData", entries, branch });
 	}
 
 	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {
@@ -467,14 +470,95 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleResetToEntry(entry: ReflogEntry) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0) {
+			void vscode.window.showErrorMessage("No Git repository found");
+			return;
+		}
+
+		const repository = entry.repoRoot
+			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
+			: git.repositories[0];
+
+		if (!repository) {
+			void vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		const modeChoice = await vscode.window.showQuickPick(
+			[
+				{
+					label: "Soft Reset",
+					description: "Keep all changes staged",
+					detail: "Moves HEAD to the target commit, keeps your changes in the staging area",
+					mode: "soft" as ResetMode,
+				},
+				{
+					label: "Mixed Reset",
+					description: "Keep changes unstaged (default)",
+					detail: "Moves HEAD to the target commit, keeps your changes as unstaged modifications",
+					mode: "mixed" as ResetMode,
+				},
+				{
+					label: "Hard Reset",
+					description: "⚠️ Discard all changes",
+					detail: "Moves HEAD to the target commit and discards all uncommitted changes. This cannot be undone!",
+					mode: "hard" as ResetMode,
+				},
+			],
+			{
+				title: `Reset to ${entry.hash.substring(0, 7)}`,
+				placeHolder: "Choose reset mode",
+			}
+		);
+
+		if (!modeChoice) {
+			return;
+		}
+
+		const shortHash = entry.hash.substring(0, 7);
+		let confirmMessage: string;
+		let confirmButton: string;
+
+		if (modeChoice.mode === "hard") {
+			confirmMessage = `⚠️ Hard reset to ${shortHash}?\n\nThis will PERMANENTLY discard all uncommitted changes. This action cannot be undone!`;
+			confirmButton = "Hard Reset (Discard Changes)";
+		} else if (modeChoice.mode === "soft") {
+			confirmMessage = `Soft reset to ${shortHash}?\n\nAll changes between HEAD and this commit will be kept staged.`;
+			confirmButton = "Soft Reset";
+		} else {
+			confirmMessage = `Mixed reset to ${shortHash}?\n\nAll changes between HEAD and this commit will be kept as unstaged modifications.`;
+			confirmButton = "Mixed Reset";
+		}
+
 		const confirm = await vscode.window.showWarningMessage(
-			`Reset to ${entry.hash}?`,
-			"Reset",
+			confirmMessage,
+			{ modal: true },
+			confirmButton,
 			"Cancel"
 		);
 
-		if (confirm === "Reset") {
-			void vscode.window.showInformationMessage(`Would reset to ${entry.hash}`);
+		if (confirm !== confirmButton) {
+			return;
+		}
+
+		try {
+			await performReset({
+				repository,
+				targetHash: entry.hash,
+				mode: modeChoice.mode,
+			});
+
+			void vscode.window.showInformationMessage(
+				`Reset to ${shortHash} (${modeChoice.mode}) successful`
+			);
+
+			await this.refresh();
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : "Unknown error";
+			void vscode.window.showErrorMessage(`Reset failed: ${errorMessage}`);
 		}
 	}
 

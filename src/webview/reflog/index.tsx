@@ -15,6 +15,7 @@ interface FileInfo {
 interface Message {
 	type: string;
 	entries?: ReflogEntry[];
+	branch?: string | null;
 	key?: string;
 	hash?: string;
 	files?: FileInfo[];
@@ -22,6 +23,8 @@ interface Message {
 	isCollapsed?: boolean;
 	message?: string;
 }
+
+const PROTECTED_BRANCHES = ["main", "master", "default", "develop", "production", "prod"];
 
 interface VSCodeAPI {
 	postMessage(message: unknown): void;
@@ -33,6 +36,7 @@ const vscode = acquireVsCodeApi();
 
 function App() {
 	const [entries, setEntries] = useState<ReflogEntry[]>([]);
+	const [branch, setBranch] = useState<string | null>(null);
 	const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 	const [firstClickIndex, setFirstClickIndex] = useState<number | null>(null);
 	const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -50,11 +54,14 @@ function App() {
 	const listRef = useRef<HTMLDivElement>(null);
 	const appRef = useRef<HTMLDivElement>(null);
 
+	const isProtectedBranch = branch !== null && PROTECTED_BRANCHES.includes(branch.toLowerCase());
+
 	useEffect(() => {
 		const messageHandler = (event: MessageEvent<Message>) => {
 			const message = event.data;
 			if (message.type === "reflogData") {
 				setEntries(message.entries || []);
+				setBranch(message.branch ?? null);
 				setSelectedIndices(new Set());
 				setFirstClickIndex(null);
 				setFocusedIndex(0);
@@ -285,6 +292,22 @@ function App() {
 			style={{ outline: "none" }}
 			onClick={() => appRef.current?.focus()}
 		>
+			{isProtectedBranch && (
+				<div className={styles.protectedBranchWarning}>
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 16 16"
+						fill="currentColor"
+						style={{ flexShrink: 0 }}
+					>
+						<path d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z" />
+					</svg>
+					<span>
+						You&apos;re on <strong>{branch}</strong> — history changes will rewrite shared commits
+					</span>
+				</div>
+			)}
 			<div className={styles.container}>
 				{entries.length === 0 ? (
 					<p className={styles.loading}>Loading reflog...</p>
@@ -312,7 +335,7 @@ function App() {
 
 			<ContextMenu triggerRef={listRef}>
 				<>
-					{focusedIndex === 0 && (
+					{focusedIndex === 0 && selectedIndices.size <= 1 && (
 						<>
 							<ContextMenuItem className={styles.contextMenuItem} onClick={handleAmendCommit}>
 								Amend this commit
