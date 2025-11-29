@@ -11,6 +11,8 @@ import {
 	ensureCleanWorkingTree,
 	performUndoLastCommit,
 	performReset,
+	performRevertCommit,
+	performCherryPick,
 	type ResetMode,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
@@ -161,6 +163,15 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				break;
 			case "undoLastCommit":
 				await this.handleUndoLastCommit(message.entry as ReflogEntry);
+				break;
+			case "revertCommit":
+				await this.handleRevertCommit(message.entry as ReflogEntry);
+				break;
+			case "checkoutCommit":
+				await this.handleCheckoutCommit(message.entry as ReflogEntry);
+				break;
+			case "cherryPickCommit":
+				await this.handleCherryPickCommit(message.entry as ReflogEntry);
 				break;
 		}
 	}
@@ -620,6 +631,91 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
+	private async handleRevertCommit(entry: ReflogEntry) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0) {
+			return;
+		}
+
+		const repository = entry.repoRoot
+			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
+			: git.repositories[0];
+
+		if (!repository) {
+			vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		if (entry.isMerge) {
+			vscode.window.showErrorMessage(
+				"Reverting merge commits is not supported. Use 'git revert -m <parent> <hash>' from the terminal."
+			);
+			return;
+		}
+
+		const isClean = await ensureCleanWorkingTree(repository);
+		if (!isClean) {
+			vscode.window.showErrorMessage(
+				"Cannot revert: you have uncommitted changes. Commit or stash them first."
+			);
+			return;
+		}
+
+		const shortHash = entry.hash.substring(0, 7);
+
+		const confirm = await vscode.window.showWarningMessage(
+			`Revert commit ${shortHash}?\n\nThis will create a new commit that undoes the changes from that commit.`,
+			{ modal: true },
+			"Revert"
+		);
+
+		if (confirm !== "Revert") {
+			return;
+		}
+
+		const original = entry.message || "";
+		const alreadyRevert = /^revert[:\s]/i.test(original);
+		const defaultMessage = alreadyRevert ? original : `revert: ${original}`;
+
+		const editedMessage = await vscode.window.showInputBox({
+			title: `Revert ${shortHash}`,
+			prompt: "Edit the revert commit message",
+			value: defaultMessage,
+		});
+
+		if (!editedMessage) {
+			return;
+		}
+
+		try {
+			const { shortCommitHash } = await performRevertCommit({
+				repository,
+				targetHash: entry.hash,
+				message: editedMessage,
+			});
+
+			vscode.window.showInformationMessage(`Created revert commit ${shortCommitHash} for ${shortHash}`);
+			this.refresh();
+		} catch (error) {
+			console.error("Failed to revert commit:", error);
+			const stderr =
+				error instanceof Error && "stderr" in error
+					? (error as { stderr?: string }).stderr
+					: undefined;
+
+			if (typeof stderr === "string" && /CONFLICT/i.test(stderr)) {
+				vscode.window.showErrorMessage(
+					"Revert caused merge conflicts. Resolve the conflicts and commit the changes manually."
+				);
+			} else {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Failed to revert commit: ${errorMessage}`);
+			}
+		}
+	}
+
 	private async handleSquashCommits(entries: ReflogEntry[], interactive: boolean) {
 		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
 		const git = gitExtension?.getAPI(1);
@@ -706,12 +802,142 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
+	private async handleCheckoutCommit(entry: ReflogEntry) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0) {
+			void vscode.window.showErrorMessage("No Git repository found");
+			return;
+		}
+
+		const repository = entry.repoRoot
+			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
+			: git.repositories[0];
+
+		if (!repository) {
+			void vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		const shortHash = entry.hash.substring(0, 7);
+
+		const confirm = await vscode.window.showWarningMessage(
+			`Checkout commit ${shortHash}?\n\nThis will put you in a detached HEAD state.`,
+			{ modal: true },
+			"Checkout"
+		);
+
+		if (confirm !== "Checkout") {
+			return;
+		}
+
+		try {
+			await repository.checkout(entry.hash);
+			vscode.window.showInformationMessage(`Checked out commit ${shortHash}`);
+			this.refresh();
+		} catch (error) {
+			console.error("Failed to checkout commit:", error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			vscode.window.showErrorMessage(`Failed to checkout commit: ${errorMessage}`);
+		}
+	}
+
+	private async handleCherryPickCommit(entry: ReflogEntry) {
+		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+		const git = gitExtension?.getAPI(1);
+
+		if (!git || git.repositories.length === 0) {
+			void vscode.window.showErrorMessage("No Git repository found");
+			return;
+		}
+
+		const repository = entry.repoRoot
+			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
+			: git.repositories[0];
+
+		if (!repository) {
+			void vscode.window.showErrorMessage("Repository not found");
+			return;
+		}
+
+		const branches = await repository.getBranches?.({ remote: false });
+		if (!branches || branches.length === 0) {
+			void vscode.window.showErrorMessage("No local branches found");
+			return;
+		}
+
+		const currentBranch = await getActualCurrentBranch(repository);
+
+		const branchItems: vscode.QuickPickItem[] = branches
+			.filter((b: { name?: string }) => b.name && b.name !== currentBranch)
+			.map((b: { name?: string }) => ({
+				label: b.name!,
+				description: b.name === currentBranch ? "(current)" : undefined,
+			}));
+
+		if (branchItems.length === 0) {
+			void vscode.window.showErrorMessage("No other branches available to cherry-pick to");
+			return;
+		}
+
+		const shortHash = entry.hash.substring(0, 7);
+		const selectedBranch = await vscode.window.showQuickPick(branchItems, {
+			title: `Cherry-pick ${shortHash} to branch`,
+			placeHolder: "Select the target branch",
+		});
+
+		if (!selectedBranch) {
+			return;
+		}
+
+		const isClean = await ensureCleanWorkingTree(repository);
+		if (!isClean) {
+			void vscode.window.showErrorMessage(
+				"Cannot cherry-pick: you have uncommitted changes. Commit or stash them first."
+			);
+			return;
+		}
+
+		try {
+			await repository.checkout(selectedBranch.label);
+
+			const { shortCommitHash } = await performCherryPick({
+				repository,
+				targetHash: entry.hash,
+			});
+
+			vscode.window.showInformationMessage(
+				`Cherry-picked ${shortHash} to ${selectedBranch.label} as ${shortCommitHash}`
+			);
+			this.refresh();
+		} catch (error) {
+			console.error("Failed to cherry-pick commit:", error);
+			const stderr =
+				error instanceof Error && "stderr" in error
+					? (error as { stderr?: string }).stderr
+					: undefined;
+
+			if (typeof stderr === "string" && /CONFLICT/i.test(stderr)) {
+				vscode.window.showErrorMessage(
+					"Cherry-pick caused merge conflicts. Resolve the conflicts and commit the changes manually."
+				);
+			} else {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Failed to cherry-pick commit: ${errorMessage}`);
+			}
+		}
+	}
+
 	private getHtmlForWebview(webview: vscode.Webview): string {
 		const scriptUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(this.extensionUri, "out", "webview", "reflog", "index.js")
 		);
 		const styleUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(this.extensionUri, "out", "webview", "reflog", "index.css")
+		);
+		const codiconsUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(this.extensionUri, "node_modules", "@vscode", "codicons", "dist", "codicon.css")
 		);
 
 		const nonce = getNonce();
@@ -721,7 +947,8 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			<head>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+				<link href="${codiconsUri}" rel="stylesheet">
 				<link href="${styleUri}" rel="stylesheet">
 				<title>Commity Reflog</title>
 				<style>

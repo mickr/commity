@@ -6,10 +6,11 @@ interface KeymapProviderProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
 	focusedIndex: number;
 	setFocusedIndex: (index: number) => void;
 	onSelect: (index: number, options: { shift: boolean; meta: boolean }) => void;
+	onToggle?: (index: number) => void;
 }
 
 export const KeymapProvider = React.forwardRef<HTMLDivElement, KeymapProviderProps>(
-	({ children, itemCount, focusedIndex, setFocusedIndex, onSelect, ...props }, ref) => {
+	({ children, itemCount, focusedIndex, setFocusedIndex, onSelect, onToggle, ...props }, ref) => {
 		useEffect(() => {
 			const handleMessage = (event: MessageEvent) => {
 				const message = event.data;
@@ -20,7 +21,7 @@ export const KeymapProvider = React.forwardRef<HTMLDivElement, KeymapProviderPro
 
 			window.addEventListener("message", handleMessage);
 			return () => window.removeEventListener("message", handleMessage);
-		}, [itemCount, focusedIndex, setFocusedIndex, onSelect]);
+		}, [itemCount, focusedIndex, setFocusedIndex, onSelect, onToggle]);
 
 		const handleKeyEvent = (
 			key: string,
@@ -52,8 +53,11 @@ export const KeymapProvider = React.forwardRef<HTMLDivElement, KeymapProviderPro
 				case " ":
 				case "Enter": {
 					e?.preventDefault();
-					// Space/Enter selects the current focused item.
+					const isMultiSelect = shift || meta;
 					onSelect(focusedIndex, { shift: shift, meta: meta });
+					if (!isMultiSelect) {
+						onToggle?.(focusedIndex);
+					}
 					break;
 				}
 			}

@@ -1,7 +1,20 @@
 import { useCallback } from "react";
 import styles from "../reflog.module.css";
 
-export type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
+export type CommitType =
+	| "feat"
+	| "fix"
+	| "docs"
+	| "style"
+	| "refactor"
+	| "perf"
+	| "test"
+	| "chore"
+	| "ci"
+	| "build"
+	| "revert"
+	| "merge"
+	| "other";
 
 export interface ReflogEntry {
 	hash: string;
@@ -74,12 +87,19 @@ function ReflogEntryComponent({
 	isCollapsed,
 	onToggleFiles,
 }: ReflogEntryProps) {
+	const hasFiles =
+		(entry.filesChanged !== undefined && entry.filesChanged > 0) || (files && files.length > 0);
+
 	const handleSelectionClick = useCallback(
 		(e: React.MouseEvent) => {
 			e.stopPropagation();
+			const isMultiSelect = e.shiftKey || e.metaKey || e.ctrlKey;
 			onSelect(index, e.shiftKey, e.metaKey || e.ctrlKey);
+			if (hasFiles && !isMultiSelect) {
+				onToggleFiles?.();
+			}
 		},
-		[index, onSelect]
+		[index, onSelect, hasFiles, onToggleFiles]
 	);
 
 	const handleFileClick = useCallback(
@@ -118,27 +138,18 @@ function ReflogEntryComponent({
 		[entry.hash]
 	);
 
-	const handleToggleClick = useCallback(
-		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			onToggleFiles?.();
-		},
-		[onToggleFiles]
-	);
-
 	const handleContextMenu = useCallback(() => {
 		if (!isSelected) {
 			onSelect(index, false, false);
 		}
 	}, [index, isSelected, onSelect]);
 
-	const hasFiles =
-		(entry.filesChanged !== undefined && entry.filesChanged > 0) || (files && files.length > 0);
-
 	const isExpanded = isCollapsed === false;
 
 	const getCommitTypeClass = (type?: CommitType) => {
-		if (!type) return "";
+		if (!type) {
+			return "";
+		}
 		return styles[`type${type.charAt(0).toUpperCase()}${type.slice(1)}`] || "";
 	};
 
@@ -190,7 +201,10 @@ function ReflogEntryComponent({
 							{entry.commitType}
 						</span>
 					)}
-					<span className={styles.entryMessage} title={entry.message}>
+					<span
+						className={isExpanded ? styles.entryMessageExpanded : styles.entryMessage}
+						title={isExpanded ? undefined : entry.message}
+					>
 						{entry.message}
 					</span>
 				</div>
@@ -200,11 +214,7 @@ function ReflogEntryComponent({
 							{entry.author.name}
 						</span>
 					)}
-					<span
-						className={styles.entryHash}
-						onClick={handleHashClick}
-						title="Click to copy"
-					>
+					<span className={styles.entryHash} onClick={handleHashClick} title="Click to copy">
 						{entry.hash.substring(0, 7)}
 					</span>
 					<span className={styles.entryTimestamp}>{formatTimestamp(entry.timestamp)}</span>
@@ -215,11 +225,7 @@ function ReflogEntryComponent({
 						</span>
 					)}
 					{hasFiles && (
-						<button
-							type="button"
-							className={`${styles.entryFiles} ${isExpanded ? styles.expanded : ""}`}
-							onClick={handleToggleClick}
-						>
+						<span className={`${styles.entryFiles} ${isExpanded ? styles.expanded : ""}`}>
 							<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
 								<path
 									d="M4.5 3L7.5 6L4.5 9"
@@ -230,7 +236,7 @@ function ReflogEntryComponent({
 								/>
 							</svg>
 							{entry.filesChanged}
-						</button>
+						</span>
 					)}
 				</div>
 				{files && !isCollapsed && (

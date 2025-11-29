@@ -20,6 +20,7 @@
 - Uses VS Code Git extension API for repository interactions
 - AI providers in `src/services/ai-providers/` (Fireworks, mock)
 - **Git operations**: Prefer `isomorphic-git` over spawning git commands to avoid shell escaping issues with multi-line messages
+- **Multi-repo support**: The extension supports VS Code workspaces with multiple git repositories. When handling git operations, use `entry.repoRoot` to find the correct repository from `git.repositories`. Pattern: `const repository = entry.repoRoot ? git.repositories.find(r => r.rootUri.fsPath === entry.repoRoot) : git.repositories[0];`
 
 ## AI Model Configuration
 

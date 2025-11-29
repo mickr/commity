@@ -239,6 +239,13 @@
 	text-overflow: ellipsis;
 }
 
+.entryMessageExpanded {
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
 .entryMeta {
 	display: flex;
 	align-items: center;
@@ -467,14 +474,26 @@
 	text-align: left;
 	cursor: pointer;
 	font-size: 13px;
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	width: 100%;
 	border-radius: 4px;
+}
+
+.contextMenuItem .codicon {
+	flex-shrink: 0;
+	opacity: 0.7;
+	font-size: 14px;
 }
 
 .contextMenuItem:hover {
 	background: var(--vscode-menu-selectionBackground);
 	color: var(--vscode-menu-selectionForeground);
+}
+
+.contextMenuItem:hover .codicon {
+	opacity: 1;
 }
 
 .contextMenuDisabled {
@@ -514,28 +533,51 @@
 	display: none;
 }
 .btn {
-	background: var(--vscode-button-background);
-	color: var(--vscode-button-foreground);
-	border: none;
-	padding: 6px 12px;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: var(--vscode-button-secondaryBackground);
+	color: var(--vscode-button-secondaryForeground);
+	border: 1px solid var(--vscode-widget-border, transparent);
+	padding: 3px 8px;
 	cursor: pointer;
-	border-radius: 4px;
-	font-size: 13px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 500;
+	transition: background 0.1s ease;
+}
+.btn svg {
+	flex-shrink: 0;
+	opacity: 0.8;
 }
 .btn:hover {
-	background: var(--vscode-button-hoverBackground);
+	background: var(--vscode-button-secondaryHoverBackground);
+}
+.btn:hover svg {
+	opacity: 1;
+}
+.btn:active {
+	opacity: 0.8;
 }
 .btnSmall {
 	background: var(--vscode-button-secondaryBackground);
 	color: var(--vscode-button-secondaryForeground);
 	border: none;
-	padding: 4px 8px;
+	padding: 2px 6px;
 	cursor: pointer;
-	border-radius: 4px;
-	font-size: 12px;
+	border-radius: 3px;
+	font-size: 10px;
 }
 .btnSmall:hover {
 	background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.entryActionsFooter {
+	display: flex;
+	gap: 6px;
+	padding: 8px 0 4px;
+	margin-top: 4px;
+	border-top: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.1));
 }
 
 /* Protected branch warning banner */

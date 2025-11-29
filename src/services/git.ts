@@ -402,6 +402,41 @@ export async function performReset({
 	await runGit(["reset", `--${mode}`, targetHash], cwd);
 }
 
+export async function performRevertCommit({
+	repository,
+	targetHash,
+	message,
+}: {
+	repository: Repository;
+	targetHash: string;
+	message: string;
+}): Promise<{ newCommitHash: string; shortCommitHash: string }> {
+	const cwd = repository.rootUri.fsPath;
+
+	await runGit(["revert", "--no-commit", targetHash], cwd);
+	await runGit(["commit", "-m", message], cwd);
+
+	const newCommitHash = await runGit(["rev-parse", "HEAD"], cwd);
+	const shortCommitHash = newCommitHash.substring(0, 7);
+	return { newCommitHash, shortCommitHash };
+}
+
+export async function performCherryPick({
+	repository,
+	targetHash,
+}: {
+	repository: Repository;
+	targetHash: string;
+}): Promise<{ newCommitHash: string; shortCommitHash: string }> {
+	const cwd = repository.rootUri.fsPath;
+
+	await runGit(["cherry-pick", targetHash], cwd);
+
+	const newCommitHash = await runGit(["rev-parse", "HEAD"], cwd);
+	const shortCommitHash = newCommitHash.substring(0, 7);
+	return { newCommitHash, shortCommitHash };
+}
+
 export type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
 
 export interface ReflogEntry {

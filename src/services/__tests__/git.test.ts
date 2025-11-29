@@ -43,6 +43,7 @@ import {
 	getActualCurrentBranch,
 	performSoftResetSquash,
 	performRebaseSquash,
+	performRevertCommit,
 } from "../git";
 import type { Repository, Change, Status } from "../../types/git";
 
@@ -897,5 +898,87 @@ describe("performRebaseSquash", () => {
 				parent: ["squashedcommit123"],
 			})
 		);
+	});
+});
+
+describe("performRevertCommit", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("reverts a commit and creates new commit with message", async () => {
+		mockExecFileAsync
+			.mockResolvedValueOnce({ stdout: "", stderr: "" })
+			.mockResolvedValueOnce({ stdout: "", stderr: "" })
+			.mockResolvedValueOnce({ stdout: "abc1234567890\n", stderr: "" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await performRevertCommit({
+			repository: mockRepository,
+			targetHash: "def5678",
+			message: "revert: original message",
+		});
+
+		expect(result).toEqual({
+			newCommitHash: "abc1234567890",
+			shortCommitHash: "abc1234",
+		});
+
+		expect(mockExecFileAsync).toHaveBeenCalledTimes(3);
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(
+			1,
+			"git",
+			["revert", "--no-commit", "def5678"],
+			{ cwd: "/project" }
+		);
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(
+			2,
+			"git",
+			["commit", "-m", "revert: original message"],
+			{ cwd: "/project" }
+		);
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(3, "git", ["rev-parse", "HEAD"], {
+			cwd: "/project",
+		});
+	});
+
+	it("throws SquashError when git revert fails", async () => {
+		const error = new Error("git revert failed") as Error & { stderr: string };
+		error.stderr = "CONFLICT (content): Merge conflict in file.txt";
+		mockExecFileAsync.mockRejectedValueOnce(error);
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		await expect(
+			performRevertCommit({
+				repository: mockRepository,
+				targetHash: "def5678",
+				message: "revert: test",
+			})
+		).rejects.toThrow("git revert --no-commit def5678 failed");
+	});
+
+	it("throws SquashError when git commit fails", async () => {
+		mockExecFileAsync.mockResolvedValueOnce({ stdout: "", stderr: "" });
+		const error = new Error("git commit failed") as Error & { stderr: string };
+		error.stderr = "nothing to commit";
+		mockExecFileAsync.mockRejectedValueOnce(error);
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		await expect(
+			performRevertCommit({
+				repository: mockRepository,
+				targetHash: "def5678",
+				message: "revert: test",
+			})
+		).rejects.toThrow();
 	});
 });

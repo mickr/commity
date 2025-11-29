@@ -231,6 +231,46 @@ function App() {
 		});
 	}, [entries]);
 
+	const handleRevertCommit = useCallback(() => {
+		const entry = entries[focusedIndex];
+		if (!entry) {
+			return;
+		}
+
+		vscode.postMessage({
+			type: "revertCommit",
+			entry,
+		});
+	}, [entries, focusedIndex]);
+
+	const handleResetEntry = useCallback((entry: ReflogEntry) => {
+		vscode.postMessage({
+			type: "resetToEntry",
+			entry,
+		});
+	}, []);
+
+	const handleRevertEntry = useCallback((entry: ReflogEntry) => {
+		vscode.postMessage({
+			type: "revertCommit",
+			entry,
+		});
+	}, []);
+
+	const handleCheckoutEntry = useCallback((entry: ReflogEntry) => {
+		vscode.postMessage({
+			type: "checkoutCommit",
+			entry,
+		});
+	}, []);
+
+	const handleCherryPickEntry = useCallback((entry: ReflogEntry) => {
+		vscode.postMessage({
+			type: "cherryPickCommit",
+			entry,
+		});
+	}, []);
+
 	const handleOpenFileDiff = useCallback(
 		(file: string) => {
 			if (expandedFiles) {
@@ -262,12 +302,23 @@ function App() {
 		[expandedFiles]
 	);
 
+	const handleKeyboardToggle = useCallback(
+		(index: number) => {
+			const entry = entries[index];
+			if (entry) {
+				handleToggleFiles(entry);
+			}
+		},
+		[entries, handleToggleFiles]
+	);
+
 	return (
 		<KeymapProvider
 			itemCount={entries.length}
 			focusedIndex={focusedIndex}
 			setFocusedIndex={setFocusedIndex}
 			onSelect={(index, { shift, meta }) => handleSelectEntry(index, shift, meta)}
+			onToggle={handleKeyboardToggle}
 			className={styles.app}
 			ref={appRef}
 			tabIndex={0}
@@ -320,9 +371,11 @@ function App() {
 					{focusedIndex === 0 && selectedIndices.size <= 1 && (
 						<>
 							<ContextMenuItem className={styles.contextMenuItem} onClick={handleAmendCommit}>
+								<i className="codicon codicon-edit" />
 								Amend this commit
 							</ContextMenuItem>
 							<ContextMenuItem className={styles.contextMenuItem} onClick={handleUndoLastCommit}>
+								<i className="codicon codicon-discard" />
 								Undo this commit
 							</ContextMenuItem>
 						</>
@@ -333,18 +386,37 @@ function App() {
 								className={styles.contextMenuItem}
 								onClick={() => handleSquash(false)}
 							>
+								<i className="codicon codicon-fold" />
 								Squash {selectedIndices.size} commits (simple)
 							</ContextMenuItem>
 							<ContextMenuItem
 								className={styles.contextMenuItem}
 								onClick={() => handleSquash(true)}
 							>
+								<i className="codicon codicon-fold" />
 								Squash {selectedIndices.size} commits with message...
+							</ContextMenuItem>
+						</>
+					)}
+					{selectedIndices.size <= 1 && (
+						<>
+							<ContextMenuItem className={styles.contextMenuItem} onClick={handleCheckoutEntry.bind(null, entries[focusedIndex])}>
+								<i className="codicon codicon-check" />
+								Checkout
+							</ContextMenuItem>
+							<ContextMenuItem className={styles.contextMenuItem} onClick={handleCherryPickEntry.bind(null, entries[focusedIndex])}>
+								<i className="codicon codicon-git-pull-request-create" />
+								Cherry-pick
+							</ContextMenuItem>
+							<ContextMenuItem className={styles.contextMenuItem} onClick={handleRevertCommit}>
+								<i className="codicon codicon-discard" />
+								Revert
 							</ContextMenuItem>
 						</>
 					)}
 					{focusedIndex !== 0 && (
 						<ContextMenuItem className={styles.contextMenuItem} onClick={handleResetToFocused}>
+							<i className="codicon codicon-history" />
 							Reset to {entries[focusedIndex]?.hash?.substring(0, 7)}
 						</ContextMenuItem>
 					)}
