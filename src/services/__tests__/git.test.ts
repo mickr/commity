@@ -36,7 +36,7 @@ jest.mock("isomorphic-git", () => mockIsomorphicGit);
 
 import * as vscode from "vscode";
 import {
-	getStagedChangesPaths,
+	getChanges,
 	SquashError,
 	formatCommitRange,
 	ensureCleanWorkingTree,
@@ -47,7 +47,7 @@ import {
 } from "../git";
 import type { Repository, Change, Status } from "../../types/git";
 
-describe("getStagedChangesPaths", () => {
+describe("getChanges", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 	});
@@ -62,7 +62,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const result = getStagedChangesPaths(mockRepository);
+		const result = getChanges(mockRepository);
 
 		expect(result).toEqual([]);
 	});
@@ -98,7 +98,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const result = getStagedChangesPaths(mockRepository);
+		const result = getChanges(mockRepository);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].uri.fsPath).toBe("/project/src/index.ts");
@@ -130,7 +130,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const result = getStagedChangesPaths(mockRepository);
+		const result = getChanges(mockRepository);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].uri.fsPath).toBe("/project/src/main.php");
@@ -197,7 +197,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const result = getStagedChangesPaths(mockRepository);
+		const result = getChanges(mockRepository);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].uri.fsPath).toBe("/project/package.json");
@@ -240,7 +240,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const result = getStagedChangesPaths(mockRepository);
+		const result = getChanges(mockRepository);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].uri.fsPath).toBe("/project/src/app.js");
@@ -278,7 +278,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const result = getStagedChangesPaths(mockRepository);
+		const result = getChanges(mockRepository);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].uri.fsPath).toBe("/project/src/index.ts");
@@ -330,7 +330,7 @@ describe("getStagedChangesPaths", () => {
 			rootUri: vscode.Uri.file("/project"),
 		} as unknown as Repository;
 
-		const result = getStagedChangesPaths(mockRepository);
+		const result = getChanges(mockRepository);
 
 		expect(result).toHaveLength(5);
 	});
@@ -361,7 +361,7 @@ describe("getStagedChangesPaths", () => {
 				rootUri: vscode.Uri.file("/workspace/repo1"),
 			} as unknown as Repository;
 
-			const result = getStagedChangesPaths(mockRepo1);
+			const result = getChanges(mockRepo1);
 
 			expect(result).toHaveLength(1);
 			expect(result[0].uri.fsPath).toBe("/workspace/repo1/src/main.ts");
@@ -392,7 +392,7 @@ describe("getStagedChangesPaths", () => {
 				rootUri: vscode.Uri.file("/workspace/repo2"),
 			} as unknown as Repository;
 
-			const result = getStagedChangesPaths(mockRepo2);
+			const result = getChanges(mockRepo2);
 
 			expect(result).toHaveLength(1);
 			expect(result[0].uri.fsPath).toBe("/workspace/repo2/src/index.ts");

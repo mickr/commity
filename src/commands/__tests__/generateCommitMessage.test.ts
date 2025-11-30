@@ -1,24 +1,28 @@
-jest.mock("vscode", () => ({
-	extensions: {
-		getExtension: jest.fn(),
-	},
-	window: {
-		showWarningMessage: jest.fn(),
-		showErrorMessage: jest.fn(),
-		setStatusBarMessage: jest.fn(),
-		withProgress: jest.fn(),
-	},
-	ProgressLocation: {
-		Notification: 15,
-	},
-	ExtensionMode: {
-		Development: 1,
-		Production: 2,
-	},
-	Uri: {
-		file: (path: string) => ({ fsPath: path }),
-	},
-}), { virtual: true });
+jest.mock(
+	"vscode",
+	() => ({
+		extensions: {
+			getExtension: jest.fn(),
+		},
+		window: {
+			showWarningMessage: jest.fn(),
+			showErrorMessage: jest.fn(),
+			setStatusBarMessage: jest.fn(),
+			withProgress: jest.fn(),
+		},
+		ProgressLocation: {
+			Notification: 15,
+		},
+		ExtensionMode: {
+			Development: 1,
+			Production: 2,
+		},
+		Uri: {
+			file: (path: string) => ({ fsPath: path }),
+		},
+	}),
+	{ virtual: true }
+);
 
 jest.mock("../../services/ai-providers/fireworks");
 jest.mock("../../services/git");
@@ -27,11 +31,11 @@ jest.mock("../../services/config");
 import * as vscode from "vscode";
 import { generateCommitMessage } from "../generateCommitMessage";
 import { FireworksProvider } from "../../services/ai-providers/fireworks";
-import { getStagedDiff, getCurrentBranch, getCurrentAuthor } from "../../services/git";
+import { getDiffs, getCurrentBranch, getCurrentAuthor } from "../../services/git";
 import { readConfiguration } from "../../services/config";
 
 const mockFireworksProvider = FireworksProvider as jest.MockedClass<typeof FireworksProvider>;
-const mockGetStagedDiff = getStagedDiff as jest.MockedFunction<typeof getStagedDiff>;
+const mockGetDiffs = getDiffs as jest.MockedFunction<typeof getDiffs>;
 const mockGetCurrentBranch = getCurrentBranch as jest.MockedFunction<typeof getCurrentBranch>;
 const mockGetCurrentAuthor = getCurrentAuthor as jest.MockedFunction<typeof getCurrentAuthor>;
 const mockReadConfiguration = readConfiguration as jest.MockedFunction<typeof readConfiguration>;
@@ -63,21 +67,19 @@ describe("generateCommitMessage", () => {
 			},
 		});
 
-		mockGetStagedDiff.mockReturnValue({
+		mockGetDiffs.mockReturnValue({
 			"src/test.ts": { diff: "+const x = 1;" },
 		});
 		mockGetCurrentBranch.mockReturnValue("main");
 		mockGetCurrentAuthor.mockReturnValue("test@example.com");
 		mockReadConfiguration.mockReturnValue({ success: false, data: undefined });
 
-		(vscode.window.withProgress as jest.Mock).mockImplementation(
-			async (options, task) => {
-				const mockToken = {
-					onCancellationRequested: jest.fn(),
-				};
-				return await task({}, mockToken);
-			}
-		);
+		(vscode.window.withProgress as jest.Mock).mockImplementation(async (options, task) => {
+			const mockToken = {
+				onCancellationRequested: jest.fn(),
+			};
+			return await task({}, mockToken);
+		});
 	});
 
 	it("generates commit message successfully", async () => {
@@ -106,18 +108,16 @@ describe("generateCommitMessage", () => {
 
 		await generateCommitMessage(mockSourceControl, mockContext);
 
-		expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
-			"No Git repository found"
-		);
+		expect(vscode.window.showWarningMessage).toHaveBeenCalledWith("No Git repository found");
 	});
 
-	it("shows status message when no staged changes", async () => {
-		mockGetStagedDiff.mockReturnValue({});
+	it("shows status message when no changes", async () => {
+		mockGetDiffs.mockReturnValue({});
 
 		await generateCommitMessage(mockSourceControl, mockContext);
 
 		expect(vscode.window.setStatusBarMessage).toHaveBeenCalledWith(
-			"Commity: No staged changes",
+			"Commity: No changes to commit",
 			5000
 		);
 	});
@@ -314,14 +314,12 @@ describe("generateCommitMessage", () => {
 			mockFireworksProvider.prototype.generateCommitMessage = mockGenerateCommitMessage;
 
 			const mockOnCancellationRequested = jest.fn();
-			(vscode.window.withProgress as jest.Mock).mockImplementation(
-				async (options, task) => {
-					const mockToken = {
-						onCancellationRequested: mockOnCancellationRequested,
-					};
-					return await task({}, mockToken);
-				}
-			);
+			(vscode.window.withProgress as jest.Mock).mockImplementation(async (options, task) => {
+				const mockToken = {
+					onCancellationRequested: mockOnCancellationRequested,
+				};
+				return await task({}, mockToken);
+			});
 
 			await generateCommitMessage(mockSourceControl, mockContext);
 
@@ -443,9 +441,7 @@ describe("generateCommitMessage", () => {
 
 			await generateCommitMessage(nonMatchingSourceControl, mockContext);
 
-			expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
-				"No Git repository found"
-			);
+			expect(vscode.window.showWarningMessage).toHaveBeenCalledWith("No Git repository found");
 		});
 
 		it("passes correct repository to git service functions", async () => {
@@ -479,7 +475,7 @@ describe("generateCommitMessage", () => {
 
 			await generateCommitMessage(sourceControlForRepo2, mockContext);
 
-			expect(mockGetStagedDiff).toHaveBeenCalledWith(mockRepo2);
+			expect(mockGetDiffs).toHaveBeenCalledWith(mockRepo2);
 			expect(mockGetCurrentBranch).toHaveBeenCalledWith(mockRepo2);
 		});
 	});

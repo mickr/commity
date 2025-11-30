@@ -243,20 +243,6 @@ function App() {
 		});
 	}, [entries, focusedIndex]);
 
-	const handleResetEntry = useCallback((entry: ReflogEntry) => {
-		vscode.postMessage({
-			type: "resetToEntry",
-			entry,
-		});
-	}, []);
-
-	const handleRevertEntry = useCallback((entry: ReflogEntry) => {
-		vscode.postMessage({
-			type: "revertCommit",
-			entry,
-		});
-	}, []);
-
 	const handleCheckoutEntry = useCallback((entry: ReflogEntry) => {
 		vscode.postMessage({
 			type: "checkoutCommit",
@@ -400,11 +386,17 @@ function App() {
 					)}
 					{selectedIndices.size <= 1 && (
 						<>
-							<ContextMenuItem className={styles.contextMenuItem} onClick={handleCheckoutEntry.bind(null, entries[focusedIndex])}>
+							<ContextMenuItem
+								className={styles.contextMenuItem}
+								onClick={handleCheckoutEntry.bind(null, entries[focusedIndex])}
+							>
 								<i className="codicon codicon-check" />
 								Checkout
 							</ContextMenuItem>
-							<ContextMenuItem className={styles.contextMenuItem} onClick={handleCherryPickEntry.bind(null, entries[focusedIndex])}>
+							<ContextMenuItem
+								className={styles.contextMenuItem}
+								onClick={handleCherryPickEntry.bind(null, entries[focusedIndex])}
+							>
 								<i className="codicon codicon-git-pull-request-create" />
 								Cherry-pick
 							</ContextMenuItem>

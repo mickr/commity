@@ -53,20 +53,19 @@ function shouldIgnore(relPosix: string): boolean {
 	return false;
 }
 
-export function getStagedChangesPaths(repository: Repository): Change[] {
-	const changes: Change[] = repository.state.workingTreeChanges;
-	const stagedChanges: Change[] = repository.state.indexChanges;
-	const allChanges = [...changes, ...stagedChanges];
+export function getChanges(repository: Repository): Change[] {
+	const workingTree: Change[] = repository.state.workingTreeChanges;
+	const staged: Change[] = repository.state.indexChanges;
 	const cwd = repository.rootUri.fsPath;
 
-	return allChanges.filter((change) => {
+	return [...workingTree, ...staged].filter((change) => {
 		const rel = toPosixRelative(cwd, change.uri.fsPath);
 		return !shouldIgnore(rel);
 	});
 }
 
-export function getStagedDiff(repository: Repository): StagedDiffs {
-	const changes = getStagedChangesPaths(repository);
+export function getDiffs(repository: Repository): StagedDiffs {
+	const changes = getChanges(repository);
 
 	if (changes.length === 0) {
 		return {};
@@ -119,22 +118,23 @@ export function getCurrentBranch(repository: Repository): string {
 	return repository.state?.HEAD?.name || "";
 }
 
-export function getCurrentAuthor(): string {
-	try {
-		const gitConfig = execSync("git config user.name", { encoding: "utf-8" });
-		return gitConfig.trim();
-	} catch (error) {
-		console.error("Error getting current author:", error);
-		return "";
-	}
-}
-
 function getGitConfigValue(key: string, fallback: string): string {
 	try {
 		return execSync(`git config ${key}`, { encoding: "utf-8" }).trim();
 	} catch {
 		return fallback;
 	}
+}
+
+export function getCurrentAuthor(): string {
+	return getGitConfigValue("user.name", "");
+}
+
+function getAuthor(): { name: string; email: string } {
+	return {
+		name: getGitConfigValue("user.name", "Unknown"),
+		email: getGitConfigValue("user.email", "unknown@unknown"),
+	};
 }
 
 export class SquashError extends Error {
@@ -244,16 +244,12 @@ export async function performSoftResetSquash({
 	const headCommit = await git.readCommit({ fs, dir, oid: headOid });
 	const treeOid = headCommit.commit.tree;
 
-	// Get author info (use shell command to read global config too)
-	const authorName = getGitConfigValue("user.name", "Unknown");
-	const authorEmail = getGitConfigValue("user.email", "unknown@unknown");
-
 	// Create new commit with the current tree but parent of oldest commit
 	const newCommitHash = await git.commit({
 		fs,
 		dir,
 		message,
-		author: { name: authorName, email: authorEmail },
+		author: getAuthor(),
 		tree: treeOid,
 		parent: [parentOid],
 	});
@@ -297,35 +293,31 @@ export async function performRebaseSquash({
 		ref: headOid,
 	});
 
-	// Find commits that come after the squashed commits (between HEAD and newest squash commit)
 	const newestSquashCommit = commitHashes[0];
-	const commitsToReplay: Array<{ oid: string; commit: { tree: string; message: string; parent: string[] } }> = [];
-	let foundNewestSquash = false;
+	const commitsToReplay: Array<{
+		oid: string;
+		commit: { tree: string; message: string; parent: string[] };
+	}> = [];
 
 	for (const commit of allCommits) {
 		if (commit.oid === newestSquashCommit) {
-			foundNewestSquash = true;
 			break;
 		}
-		if (!foundNewestSquash) {
-			commitsToReplay.unshift(commit);
-		}
+
+		commitsToReplay.unshift(commit);
 	}
 
 	// Get the tree from the newest commit being squashed (preserves the final state of squashed commits)
 	const newestSquashCommitInfo = await git.readCommit({ fs, dir, oid: newestSquashCommit });
 	const squashedTreeOid = newestSquashCommitInfo.commit.tree;
-
-	// Get author info (use shell command to read global config too)
-	const authorName = getGitConfigValue("user.name", "Unknown");
-	const authorEmail = getGitConfigValue("user.email", "unknown@unknown");
+	const author = getAuthor();
 
 	// Create the squashed commit with the tree from newest squash commit
 	let newCommitHash = await git.commit({
 		fs,
 		dir,
 		message,
-		author: { name: authorName, email: authorEmail },
+		author,
 		tree: squashedTreeOid,
 		parent: [baseParentOid],
 	});
@@ -336,7 +328,7 @@ export async function performRebaseSquash({
 			fs,
 			dir,
 			message: commit.commit.message,
-			author: { name: authorName, email: authorEmail },
+			author,
 			tree: commit.commit.tree,
 			parent: [newCommitHash],
 		});
@@ -360,14 +352,11 @@ export async function performAmendCommit({
 	const treeOid = headCommit.commit.tree;
 	const parentOids = headCommit.commit.parent;
 
-	const authorName = getGitConfigValue("user.name", "Unknown");
-	const authorEmail = getGitConfigValue("user.email", "unknown@unknown");
-
 	const newCommitHash = await git.commit({
 		fs,
 		dir,
 		message,
-		author: { name: authorName, email: authorEmail },
+		author: getAuthor(),
 		tree: treeOid,
 		parent: parentOids,
 	});
@@ -437,7 +426,20 @@ export async function performCherryPick({
 	return { newCommitHash, shortCommitHash };
 }
 
-export type CommitType = "feat" | "fix" | "docs" | "style" | "refactor" | "perf" | "test" | "chore" | "ci" | "build" | "revert" | "merge" | "other";
+export type CommitType =
+	| "feat"
+	| "fix"
+	| "docs"
+	| "style"
+	| "refactor"
+	| "perf"
+	| "test"
+	| "chore"
+	| "ci"
+	| "build"
+	| "revert"
+	| "merge"
+	| "other";
 
 export interface ReflogEntry {
 	hash: string;
@@ -463,7 +465,19 @@ function parseCommitType(message: string): CommitType | undefined {
 	const match = message.match(/^(\w+)(?:\(.+?\))?:/);
 	if (match) {
 		const type = match[1].toLowerCase();
-		const validTypes: CommitType[] = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "chore", "ci", "build", "revert"];
+		const validTypes: CommitType[] = [
+			"feat",
+			"fix",
+			"docs",
+			"style",
+			"refactor",
+			"perf",
+			"test",
+			"chore",
+			"ci",
+			"build",
+			"revert",
+		];
 		if (validTypes.includes(type as CommitType)) {
 			return type as CommitType;
 		}
