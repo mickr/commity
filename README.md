@@ -6,6 +6,7 @@ Generate meaningful commit messages in milliseconds by analyzing your staged cha
 
 ## Features
 
+### AI Commit Message Generation
 - **Lightning Fast**: Sub-second commit message generation
 - **Smart Analysis**: Deep understanding of code changes and context
 - **One-Click Generation**: Instant messages from the Source Control toolbar
@@ -13,12 +14,45 @@ Generate meaningful commit messages in milliseconds by analyzing your staged cha
 - **Customizable**: Configure message format using `.commity.yaml`
 - **Conventional Commits**: Supports Conventional Commits specification out of the box
 
+### Visual Reflog Browser (New in 2.0)
+- **Interactive Commit History**: Browse your branch's commit history in a dedicated sidebar panel
+- **Multi-Select Commits**: Select multiple commits with keyboard navigation (Arrow keys + Space)
+- **Commit Details**: View files changed, additions/deletions, and commit metadata
+- **Visual Diffs**: Right-click any commit to view its diff in VS Code's diff editor
+- **Commit Type Badges**: Visual indicators for feat, fix, docs, refactor, and other conventional commit types
+
+### Squash & Amend Operations (New in 2.0)
+- **Squash Commits**: Select multiple commits and squash them into one with an AI-generated combined message
+- **Amend Commits**: Quickly amend the most recent commit's message
+- **AI-Powered Messages**: The squash editor uses AI to generate a meaningful combined commit message from all selected commits
+- **Undo Last Commit**: Right-click to undo the last commit (soft reset)
+- **Reset Operations**: Reset to any commit with soft, mixed, or hard reset modes
+
+### Context Menu Actions
+- **View Diff**: Compare any commit against its parent
+- **Squash to Here**: Squash all commits from HEAD to the selected commit
+- **Amend**: Edit the most recent commit's message
+- **Reset**: Reset to a specific commit with your choice of reset mode
+
 ## Usage
 
+### Generate Commit Messages
 1. Stage your changes in the Source Control view
-2. Click the robot icon (🤖) in the Source Control toolbar
+2. Click the Commity icon in the Source Control toolbar
 3. Review and edit the generated commit message
 4. Commit as usual
+
+### Use the Reflog Browser
+1. Click the Commity icon in the Activity Bar (sidebar)
+2. Browse your commit history with keyboard (↑/↓) or mouse
+3. Press Space or Enter to select/deselect commits
+4. Right-click for context menu actions (View Diff, Squash, Amend, Reset)
+
+### Squash Commits
+1. In the Reflog Browser, select multiple commits by pressing Space on each
+2. Right-click and choose "Squash Selected"
+3. Review and edit the AI-generated combined commit message
+4. Click "Squash" to complete the operation
 
 ## Configuration
 

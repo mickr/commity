@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { FireworksProvider } from "../services/ai-providers/fireworks";
-import { getStagedDiff, getCurrentBranch, getCurrentAuthor } from "../services/git";
+import { FireworksProvider, FireworksError } from "../services/ai-providers/fireworks";
+import { getDiffs, getCurrentBranch, getCurrentAuthor } from "../services/git";
 import { readConfiguration } from "../services/config";
 import type { CommitMessageRequest, DiffEntry } from "../types/ai";
 import type { Repository } from "../types/git";
@@ -23,17 +23,17 @@ export const generateCommitMessage = async (
 
 	const client = new FireworksProvider(context.extensionMode === vscode.ExtensionMode.Development);
 
-	const stagedDiffs = getStagedDiff(repository);
+	const rawDiffs = getDiffs(repository);
 	const branch = getCurrentBranch(repository);
 	const author = getCurrentAuthor();
 
-	const diffs: DiffEntry[] = Object.entries(stagedDiffs).map(([path, { diff }]) => ({
+	const diffs: DiffEntry[] = Object.entries(rawDiffs).map(([path, { diff }]) => ({
 		path,
 		diff,
 	}));
 
 	if (diffs.length === 0) {
-		vscode.window.setStatusBarMessage("Commity: No staged changes", 5000);
+		vscode.window.setStatusBarMessage("Commity: No changes to commit", 5000);
 		return;
 	}
 
@@ -86,29 +86,27 @@ export const generateCommitMessage = async (
 				return;
 			}
 
-			if (error.message.includes("429") || error.message.toLowerCase().includes("rate limit")) {
-				vscode.window.showErrorMessage(
-					"Commity: Rate limit exceeded. Please try again in a moment."
-				);
-				return;
-			}
+			if (error instanceof FireworksError) {
+				if (error.status === 429) {
+					vscode.window.showErrorMessage(
+						"Commity: Rate limit exceeded. Please try again in a moment."
+					);
+					return;
+				}
 
-			if (error.message.includes("500") || error.message.includes("503")) {
-				vscode.window.showErrorMessage(
-					"Commity: Service temporarily unavailable. Please try again later."
-				);
-				return;
-			}
+				if (error.status >= 500) {
+					vscode.window.showErrorMessage(
+						"Commity: Service temporarily unavailable. Please try again later."
+					);
+					return;
+				}
 
-			if (
-				error.message.includes("400") ||
-				error.message.includes("401") ||
-				error.message.includes("403")
-			) {
-				vscode.window.showErrorMessage(
-					"Commity: Invalid request. Please check your configuration."
-				);
-				return;
+				if ([400, 401, 403, 404].includes(error.status)) {
+					vscode.window.showErrorMessage(
+						"Commity: Invalid request. Please check your configuration."
+					);
+					return;
+				}
 			}
 		}
 

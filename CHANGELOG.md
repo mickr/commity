@@ -1,3 +1,28 @@
+# [2.0.0](https://github.com/mickr/commity/compare/v1.0.1...v2.0.0) (2025-11-29)
+
+### Features
+
+* **reflog:** add visual reflog browser in dedicated sidebar panel with keyboard navigation
+* **reflog:** display commit metadata including files changed, additions/deletions, and author info
+* **reflog:** show commit type badges for conventional commit types (feat, fix, docs, etc.)
+* **squash:** add multi-commit squash functionality with AI-generated combined messages
+* **squash:** implement squash editor panel with real-time AI message generation
+* **amend:** add amend commit functionality to edit the most recent commit message
+* **reset:** add reset operations (soft, mixed, hard) via context menu
+* **undo:** add undo last commit action (soft reset to HEAD~1)
+* **diff:** add view diff action to compare any commit against its parent
+* **context-menu:** add comprehensive right-click context menu for all reflog operations
+* **ui:** add Commity activity bar icon with custom branding
+* **keyboard:** add full keyboard navigation support (arrow keys, space, enter)
+* **ai:** integrate AI for squash message synthesis from multiple commit messages
+
+### Technical
+
+* **webview:** implement React-based webview architecture with CSS modules
+* **git:** add extensive git operations using isomorphic-git for safer multi-line commit handling
+* **types:** add comprehensive TypeScript types for git operations and reflog entries
+* **tests:** add extensive test coverage for git service and reflog provider
+
 ## [1.0.1](https://github.com/mickr/commity/compare/v1.0.0...v1.0.1) (2025-11-09)
 
 

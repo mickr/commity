@@ -2,7 +2,7 @@
 	"name": "commity-ai",
 	"displayName": "Commity.ai",
 	"description": "Lightning-fast AI commit messages. Smart, instant, and context-aware.",
-	"version": "1.0.1",
+	"version": "2.0.0",
 	"publisher": "ryanlabs",
 	"author": "mickcodez",
 	"license": "SEE LICENSE IN LICENSE",
@@ -13,6 +13,7 @@
 	"bugs": {
 		"url": "https://github.com/mickr/commity/issues"
 	},
+	"icon": "media/icons/commity-logo.png",
 	"homepage": "https://commity.ai",
 	"keywords": [
 		"git",
@@ -37,7 +38,52 @@
 			{
 				"command": "commity.generateCommitMessage",
 				"title": "Generate Commity Message",
-				"icon": "$(robot)"
+				"icon": {
+					"light": "media/icons/commity-logo-light.svg",
+					"dark": "media/icons/commity-logo-dark.svg"
+				}
+			},
+			{
+				"command": "commity.refreshReflog",
+				"title": "Refresh Reflog",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "commity.reflog.focusUp",
+				"title": "Focus Up",
+				"enablement": "view == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.focusDown",
+				"title": "Focus Down",
+				"enablement": "view == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.select",
+				"title": "Select Entry",
+				"enablement": "view == commity.reflogView"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "commity.reflog.focusUp",
+				"key": "up",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.focusDown",
+				"key": "down",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.select",
+				"key": "space",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
+			},
+			{
+				"command": "commity.reflog.select",
+				"key": "enter",
+				"when": "view == commity.reflogView && viewVisible == commity.reflogView"
 			}
 		],
 		"menus": {
@@ -46,6 +92,31 @@
 					"command": "commity.generateCommitMessage",
 					"group": "navigation",
 					"when": "scmProvider == git"
+				}
+			],
+			"view/title": [
+				{
+					"command": "commity.refreshReflog",
+					"when": "view == commity.reflogView",
+					"group": "navigation"
+				}
+			]
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "commity",
+					"title": "Commity",
+					"icon": "media/icons/commity-logo-dark.svg"
+				}
+			]
+		},
+		"views": {
+			"commity": [
+				{
+					"id": "commity.reflogView",
+					"name": "Reflog",
+					"type": "webview"
 				}
 			]
 		}
@@ -56,6 +127,7 @@
 		"watch": "npm-run-all -p watch:*",
 		"watch:esbuild": "node esbuild.js --watch",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+		"watch:tsc-webview": "tsc --noEmit --watch --project src/webview/tsconfig.json",
 		"package": "npm run check-types && node esbuild.js --production",
 		"check-types": "tsc --noEmit",
 		"pretest": "npm run compile && npm run lint",
@@ -77,6 +149,8 @@
 		"@types/jest": "^30.0.0",
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "20.x",
+		"@types/react": "^19.2.5",
+		"@types/react-dom": "^19.2.3",
 		"@types/vscode": "^1.80.0",
 		"@typescript-eslint/eslint-plugin": "^6.4.1",
 		"@typescript-eslint/parser": "^6.4.1",
@@ -89,9 +163,15 @@
 		"npm-run-all": "^4.1.5",
 		"openai": "^4.75.0",
 		"prettier": "^3.6.2",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
 		"semantic-release": "^24.2.0",
 		"ts-jest": "^29.4.5",
 		"typescript": "^5.1.6",
 		"zod": "^3.23.8"
+	},
+	"dependencies": {
+		"@vscode/codicons": "^0.0.43",
+		"isomorphic-git": "^1.35.1"
 	}
 }
