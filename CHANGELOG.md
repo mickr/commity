@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/mickr/commity/compare/v1.0.1...v1.1.0) (2025-11-30)
+
+
+### Features
+
+* **release:** Bump version to 2.0.1 ([2f40eed](https://github.com/mickr/commity/commit/2f40eeddaa6c951b757f0c0a0d6899a8fa07119e))
+
 # [2.0.0](https://github.com/mickr/commity/compare/v1.0.1...v2.0.0) (2025-11-29)
 
 ### Features
