@@ -1,3 +1,18 @@
+# [2.0.0](https://github.com/mickr/commity/compare/v1.1.1...v2.0.0) (2025-11-30)
+
+
+* feat!: update to 2.0.0 ([bd27d2f](https://github.com/mickr/commity/commit/bd27d2fb48dae44958a1fecd36738079879b0e3d))
+
+
+### Bug Fixes
+
+* **extension:** update codicons path and build configuration ([9855627](https://github.com/mickr/commity/commit/9855627c8f3b9554a34e7d581aeeafd95f1b05e3))
+
+
+### BREAKING CHANGES
+
+* many changes in this version.
+
 ## [1.1.1](https://github.com/mickr/commity/compare/v1.1.0...v1.1.1) (2025-11-30)
 
 

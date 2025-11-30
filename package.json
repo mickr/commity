@@ -2,7 +2,7 @@
 	"name": "commity-ai",
 	"displayName": "Commity.ai",
 	"description": "Lightning-fast AI commit messages. Smart, instant, and context-aware.",
-	"version": "1.1.2",
+	"version": "2.0.0",
 	"publisher": "ryanlabs",
 	"author": "mickcodez",
 	"license": "SEE LICENSE IN LICENSE",
@@ -15,14 +15,24 @@
 	},
 	"icon": "media/icons/commity-logo.png",
 	"homepage": "https://commity.ai",
-	"keywords": ["git", "commit", "ai", "commit-message", "scm"],
+	"keywords": [
+		"git",
+		"commit",
+		"ai",
+		"commit-message",
+		"scm"
+	],
 	"engines": {
 		"vscode": "^1.84.0"
 	},
-	"categories": ["SCM Providers"],
+	"categories": [
+		"SCM Providers"
+	],
 	"activationEvents": [],
 	"main": "./out/extension.js",
-	"extensionDependencies": ["vscode.git"],
+	"extensionDependencies": [
+		"vscode.git"
+	],
 	"contributes": {
 		"commands": [
 			{
