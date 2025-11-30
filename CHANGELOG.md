@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/mickr/commity/compare/v1.1.0...v1.1.1) (2025-11-30)
+
+
+### Bug Fixes
+
+* **config:** exclude vscode codicons from .vscodeignore ([dd73495](https://github.com/mickr/commity/commit/dd734954214f70715682a3377503ad01a770b36f))
+
 # [1.1.0](https://github.com/mickr/commity/compare/v1.0.1...v1.1.0) (2025-11-30)
 
 
