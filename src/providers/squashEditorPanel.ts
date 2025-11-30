@@ -212,7 +212,7 @@ export class SquashEditorPanel {
 			vscode.Uri.joinPath(this.extensionUri, "out", "webview", "squash-editor", "index.css")
 		);
 		const codiconsUri = webview.asWebviewUri(
-			vscode.Uri.joinPath(this.extensionUri, "node_modules", "@vscode", "codicons", "dist", "codicon.css")
+			vscode.Uri.joinPath(this.extensionUri, "out", "codicons", "codicon.css")
 		);
 
 		const nonce = randomBytes(16).toString("base64url");

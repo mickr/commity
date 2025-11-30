@@ -81,6 +81,18 @@ async function main() {
 
 	fs.copyFileSync(cssSource, cssTarget);
 
+	// Copy codicons to out directory
+	const codiconsSource = path.join(__dirname, "node_modules/@vscode/codicons/dist");
+	const codiconsTarget = path.join(__dirname, "out/codicons");
+
+	if (!fs.existsSync(codiconsTarget)) {
+		fs.mkdirSync(codiconsTarget, { recursive: true });
+	}
+
+	for (const file of fs.readdirSync(codiconsSource)) {
+		fs.copyFileSync(path.join(codiconsSource, file), path.join(codiconsTarget, file));
+	}
+
 	if (watch) {
 		await extensionCtx.watch();
 		await webviewCtx.watch();
