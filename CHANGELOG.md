@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/mickr/commity/compare/v2.0.0...v2.0.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* **extension:** migrate git content provider to use git CLI instead of isomorphic-git ([0fad0d1](https://github.com/mickr/commity/commit/0fad0d19e3f69e10fad96c4360e772ad659fcba5))
+
 # [2.0.0](https://github.com/mickr/commity/compare/v1.1.1...v2.0.0) (2025-11-30)
 
 
