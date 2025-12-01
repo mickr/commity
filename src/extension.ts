@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { generateCommitMessage } from "./commands/generateCommitMessage";
+
 import { ReflogWebviewProvider } from "./providers/reflogWebviewProvider";
 import { GitContentProvider } from "./providers/gitContentProvider";
 import { initFireworksProvider } from "./services/ai-providers/fireworks";
