@@ -29,6 +29,7 @@ export interface ReflogEntry {
 	totalAdditions?: number;
 	totalDeletions?: number;
 	commitType?: CommitType;
+	isNewCommit?: boolean; // True if this commit is after the merge base (new to this branch)
 }
 
 export interface FileInfo {

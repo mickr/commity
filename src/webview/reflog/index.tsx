@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "../reflog.module.css";
 import ReflogEntryComponent, { type ReflogEntry } from "./reflog-item";
@@ -16,6 +16,7 @@ interface Message {
 	type: string;
 	entries?: ReflogEntry[];
 	branch?: string | null;
+	mergeBaseHash?: string | null;
 	key?: string;
 	hash?: string;
 	files?: FileInfo[];
@@ -332,22 +333,40 @@ function App() {
 					<p className={styles.loading}>Loading reflog...</p>
 				) : (
 					<div className={styles.reflogList} ref={listRef}>
-						{entries.map((entry, index) => (
-							<ReflogEntryComponent
-								key={`${entry.hash}-${index}`}
-								entry={entry}
-								index={index}
-								isSelected={selectedIndices.has(index)}
-								isFocused={index === focusedIndex}
-								onSelect={handleSelectEntry}
-								files={expandedFiles?.hash === entry.hash ? expandedFiles.files : undefined}
-								isCollapsed={
-									expandedFiles?.hash === entry.hash ? expandedFiles.isCollapsed : undefined
-								}
-								onOpenFile={handleOpenFileDiff}
-								onToggleFiles={() => handleToggleFiles(entry)}
-							/>
-						))}
+						{entries.map((entry, index) => {
+							// Check if we need to show the delimiter before this entry
+							// Show delimiter when transitioning from new commits to inherited commits
+							const prevEntry = index > 0 ? entries[index - 1] : null;
+							const showDelimiter =
+								prevEntry?.isNewCommit === true && entry.isNewCommit === false;
+
+							return (
+								<Fragment key={`${entry.hash}-${index}`}>
+									{showDelimiter && (
+										<div className={styles.branchDelimiter}>
+											<div className={styles.delimiterLine} />
+											<span className={styles.delimiterText}>
+												Commits from parent branch
+											</span>
+											<div className={styles.delimiterLine} />
+										</div>
+									)}
+									<ReflogEntryComponent
+										entry={entry}
+										index={index}
+										isSelected={selectedIndices.has(index)}
+										isFocused={index === focusedIndex}
+										onSelect={handleSelectEntry}
+										files={expandedFiles?.hash === entry.hash ? expandedFiles.files : undefined}
+										isCollapsed={
+											expandedFiles?.hash === entry.hash ? expandedFiles.isCollapsed : undefined
+										}
+										onOpenFile={handleOpenFileDiff}
+										onToggleFiles={() => handleToggleFiles(entry)}
+									/>
+								</Fragment>
+							);
+						})}
 					</div>
 				)}
 			</div>

@@ -455,6 +455,7 @@ export interface ReflogEntry {
 	totalAdditions?: number;
 	totalDeletions?: number;
 	commitType?: CommitType;
+	isNewCommit?: boolean; // True if this commit is after the merge base (new to this branch)
 }
 
 function parseCommitType(message: string): CommitType | undefined {
@@ -483,6 +484,48 @@ function parseCommitType(message: string): CommitType | undefined {
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Gets the merge base hash between the current branch and a common parent branch.
+ * This identifies where the current branch diverged from its parent.
+ * Returns null if no merge base can be found (e.g., on main/master itself).
+ */
+export async function getMergeBaseHash(repository: Repository): Promise<string | null> {
+	const cwd = repository.rootUri.fsPath;
+
+	try {
+		const currentBranch = await git.currentBranch({ fs, dir: cwd });
+		if (!currentBranch) {
+			return null;
+		}
+
+		// Common parent branch names to check
+		const parentBranches = ["main", "master", "develop", "default"];
+
+		// Don't compute merge base if we're on a common parent branch
+		if (parentBranches.includes(currentBranch.toLowerCase())) {
+			return null;
+		}
+
+		// Try to find merge base with each parent branch
+		for (const parentBranch of parentBranches) {
+			try {
+				const result = await runGit(["merge-base", currentBranch, parentBranch], cwd);
+				if (result) {
+					return result;
+				}
+			} catch {
+				// This parent branch doesn't exist or there's no common ancestor
+				continue;
+			}
+		}
+
+		return null;
+	} catch (error) {
+		console.error("Failed to get merge base:", error);
+		return null;
+	}
 }
 
 export async function getReflogEntries(repository: Repository): Promise<ReflogEntry[]> {

@@ -14,6 +14,7 @@ import {
 	performRevertCommit,
 	performCherryPick,
 	type ResetMode,
+	getMergeBaseHash,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 import { SquashEditorPanel } from "./squashEditorPanel";
@@ -91,25 +92,42 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		const git = gitExtension?.getAPI(1);
 
 		if (!git || git.repositories.length === 0) {
-			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null });
+			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null, mergeBaseHash: null });
 			return;
 		}
 
 		const primaryRepo = this.getPrimaryRepository(git.repositories);
 		let branch: string | null = null;
+		let mergeBaseHash: string | null = null;
 		if (primaryRepo && this.view) {
 			branch = await getActualCurrentBranch(primaryRepo);
 			this.view.title = branch ? `Reflog (${branch})` : "Reflog";
+			// Get merge base to identify where current branch diverged from parent
+			mergeBaseHash = await getMergeBaseHash(primaryRepo);
 		}
 
 		const entries: ReflogEntry[] = [];
 		for (const repo of git.repositories) {
 			const repoEntries = await getReflogEntries(repo);
-			const entriesWithRepo = repoEntries.map((e) => ({ ...e, repoRoot: repo.rootUri.fsPath }));
+			// Get merge base for this repo to mark new commits
+			const repoMergeBase = await getMergeBaseHash(repo);
+			let foundMergeBase = false;
+			const entriesWithRepo = repoEntries.map((e) => {
+				// Mark commits as "new" if they come before (after in time) the merge base
+				// Once we see the merge base commit, all subsequent commits are inherited
+				if (repoMergeBase && e.hash === repoMergeBase) {
+					foundMergeBase = true;
+				}
+				return {
+					...e,
+					repoRoot: repo.rootUri.fsPath,
+					isNewCommit: repoMergeBase ? !foundMergeBase : undefined,
+				};
+			});
 			entries.push(...entriesWithRepo);
 		}
 
-		this.view?.webview.postMessage({ type: "reflogData", entries, branch });
+		this.view?.webview.postMessage({ type: "reflogData", entries, branch, mergeBaseHash });
 	}
 
 	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {

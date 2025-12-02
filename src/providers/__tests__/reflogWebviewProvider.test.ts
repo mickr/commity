@@ -36,6 +36,7 @@ jest.mock("../../services/git", () => ({
 	getHeadHash: jest.fn(),
 	ensureCleanWorkingTree: jest.fn().mockResolvedValue(true),
 	performCherryPick: jest.fn(),
+	getMergeBaseHash: jest.fn().mockResolvedValue(null),
 }));
 
 describe("ReflogWebviewProvider", () => {
@@ -105,6 +106,7 @@ describe("ReflogWebviewProvider", () => {
 				type: "reflogData",
 				entries: [],
 				branch: "main",
+				mergeBaseHash: null,
 			});
 		});
 
@@ -117,6 +119,7 @@ describe("ReflogWebviewProvider", () => {
 				type: "reflogData",
 				entries: [],
 				branch: null,
+				mergeBaseHash: null,
 			});
 		});
 
@@ -132,7 +135,52 @@ describe("ReflogWebviewProvider", () => {
 				type: "reflogData",
 				entries: [],
 				branch: "feature/my-feature",
+				mergeBaseHash: null,
 			});
+		});
+
+		it("sends merge base hash when available", async () => {
+			const mockRepo = { rootUri: { fsPath: "/repo1" } };
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("feature/my-feature");
+			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([
+				{ hash: "abc123", message: "new commit", timestamp: "2024-01-01" },
+				{ hash: "def456", message: "parent commit", timestamp: "2024-01-02" },
+			]);
+			(gitService.getMergeBaseHash as jest.Mock).mockResolvedValue("def456");
+
+			await callUpdateReflog();
+
+			expect(mockWebview.postMessage).toHaveBeenCalledWith({
+				type: "reflogData",
+				entries: [
+					{ hash: "abc123", message: "new commit", timestamp: "2024-01-01", repoRoot: "/repo1", isNewCommit: true },
+					{ hash: "def456", message: "parent commit", timestamp: "2024-01-02", repoRoot: "/repo1", isNewCommit: false },
+				],
+				branch: "feature/my-feature",
+				mergeBaseHash: "def456",
+			});
+		});
+
+		it("marks commits as new before merge base", async () => {
+			const mockRepo = { rootUri: { fsPath: "/repo1" } };
+			mockGitApi.repositories = [mockRepo];
+			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("feature/my-feature");
+			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([
+				{ hash: "new1", message: "newest commit", timestamp: "2024-01-01" },
+				{ hash: "new2", message: "newer commit", timestamp: "2024-01-02" },
+				{ hash: "mergebase", message: "merge base", timestamp: "2024-01-03" },
+				{ hash: "old1", message: "old commit", timestamp: "2024-01-04" },
+			]);
+			(gitService.getMergeBaseHash as jest.Mock).mockResolvedValue("mergebase");
+
+			await callUpdateReflog();
+
+			const call = mockWebview.postMessage.mock.calls[0][0];
+			expect(call.entries[0].isNewCommit).toBe(true);
+			expect(call.entries[1].isNewCommit).toBe(true);
+			expect(call.entries[2].isNewCommit).toBe(false); // merge base itself
+			expect(call.entries[3].isNewCommit).toBe(false);
 		});
 	});
 
