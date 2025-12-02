@@ -106,22 +106,42 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			mergeBaseHash = await getMergeBaseHash(primaryRepo);
 		}
 
+		// Cache merge base results by repo path to avoid redundant computation
+		const mergeBaseCache = new Map<string, string | null>();
+		const getMergeBaseForRepo = async (repo: Repository): Promise<string | null> => {
+			const repoPath = repo.rootUri.fsPath;
+			if (!mergeBaseCache.has(repoPath)) {
+				mergeBaseCache.set(repoPath, await getMergeBaseHash(repo));
+			}
+			return mergeBaseCache.get(repoPath) ?? null;
+		};
+
+		// Pre-cache the primary repo's merge base if available
+		if (primaryRepo && mergeBaseHash !== null) {
+			mergeBaseCache.set(primaryRepo.rootUri.fsPath, mergeBaseHash);
+		}
+
 		const entries: ReflogEntry[] = [];
 		for (const repo of git.repositories) {
 			const repoEntries = await getReflogEntries(repo);
 			// Get merge base for this repo to mark new commits
-			const repoMergeBase = await getMergeBaseHash(repo);
+			const repoMergeBase = await getMergeBaseForRepo(repo);
 			let foundMergeBase = false;
 			const entriesWithRepo = repoEntries.map((e) => {
-				// Mark commits as "new" if they come before (after in time) the merge base
-				// Once we see the merge base commit, all subsequent commits are inherited
-				if (repoMergeBase && e.hash === repoMergeBase) {
+				// Check if this is the merge base commit BEFORE computing isNewCommit
+				// The merge base commit itself is considered inherited (not new)
+				const isMergeBaseCommit = repoMergeBase && e.hash === repoMergeBase;
+				const isNewCommit = repoMergeBase ? !foundMergeBase && !isMergeBaseCommit : undefined;
+				
+				// Mark that we've found the merge base for subsequent commits
+				if (isMergeBaseCommit) {
 					foundMergeBase = true;
 				}
+				
 				return {
 					...e,
 					repoRoot: repo.rootUri.fsPath,
-					isNewCommit: repoMergeBase ? !foundMergeBase : undefined,
+					isNewCommit,
 				};
 			});
 			entries.push(...entriesWithRepo);
