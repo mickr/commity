@@ -106,7 +106,7 @@ describe("ReflogWebviewProvider", () => {
 				type: "reflogData",
 				entries: [],
 				branch: "main",
-				mergeBaseHash: null,
+				parentBranch: null,
 			});
 		});
 
@@ -119,7 +119,7 @@ describe("ReflogWebviewProvider", () => {
 				type: "reflogData",
 				entries: [],
 				branch: null,
-				mergeBaseHash: null,
+				parentBranch: null,
 			});
 		});
 
@@ -135,11 +135,11 @@ describe("ReflogWebviewProvider", () => {
 				type: "reflogData",
 				entries: [],
 				branch: "feature/my-feature",
-				mergeBaseHash: null,
+				parentBranch: null,
 			});
 		});
 
-		it("sends merge base hash when available", async () => {
+		it("sends parent branch name when available", async () => {
 			const mockRepo = { rootUri: { fsPath: "/repo1" } };
 			mockGitApi.repositories = [mockRepo];
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("feature/my-feature");
@@ -147,7 +147,7 @@ describe("ReflogWebviewProvider", () => {
 				{ hash: "abc123", message: "new commit", timestamp: "2024-01-01" },
 				{ hash: "def456", message: "parent commit", timestamp: "2024-01-02" },
 			]);
-			(gitService.getMergeBaseHash as jest.Mock).mockResolvedValue("def456");
+			(gitService.getMergeBaseHash as jest.Mock).mockResolvedValue({ hash: "def456", parentBranch: "main" });
 
 			await callUpdateReflog();
 
@@ -158,7 +158,7 @@ describe("ReflogWebviewProvider", () => {
 					{ hash: "def456", message: "parent commit", timestamp: "2024-01-02", repoRoot: "/repo1", isNewCommit: false },
 				],
 				branch: "feature/my-feature",
-				mergeBaseHash: "def456",
+				parentBranch: "main",
 			});
 		});
 
@@ -172,7 +172,7 @@ describe("ReflogWebviewProvider", () => {
 				{ hash: "mergebase", message: "merge base", timestamp: "2024-01-03" },
 				{ hash: "old1", message: "old commit", timestamp: "2024-01-04" },
 			]);
-			(gitService.getMergeBaseHash as jest.Mock).mockResolvedValue("mergebase");
+			(gitService.getMergeBaseHash as jest.Mock).mockResolvedValue({ hash: "mergebase", parentBranch: "main" });
 
 			await callUpdateReflog();
 

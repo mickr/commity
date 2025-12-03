@@ -92,33 +92,31 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		const git = gitExtension?.getAPI(1);
 
 		if (!git || git.repositories.length === 0) {
-			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null, mergeBaseHash: null });
+			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null, parentBranch: null });
 			return;
 		}
 
 		const primaryRepo = this.getPrimaryRepository(git.repositories);
 		let branch: string | null = null;
-		let mergeBaseHash: string | null = null;
+		const mergeBaseResult = await getMergeBaseHash(primaryRepo!);
 		if (primaryRepo && this.view) {
 			branch = await getActualCurrentBranch(primaryRepo);
 			this.view.title = branch ? `Reflog (${branch})` : "Reflog";
-			// Get merge base to identify where current branch diverged from parent
-			mergeBaseHash = await getMergeBaseHash(primaryRepo);
 		}
 
 		// Cache merge base results by repo path to avoid redundant computation
-		const mergeBaseCache = new Map<string, string | null>();
+		const mergeBaseCache = new Map<string, { hash: string; parentBranch: string } | null>();
 		const getMergeBaseForRepo = async (repo: Repository): Promise<string | null> => {
 			const repoPath = repo.rootUri.fsPath;
 			if (!mergeBaseCache.has(repoPath)) {
 				mergeBaseCache.set(repoPath, await getMergeBaseHash(repo));
 			}
-			return mergeBaseCache.get(repoPath) ?? null;
+			return mergeBaseCache.get(repoPath)?.hash ?? null;
 		};
 
 		// Pre-cache the primary repo's merge base if available
-		if (primaryRepo && mergeBaseHash !== null) {
-			mergeBaseCache.set(primaryRepo.rootUri.fsPath, mergeBaseHash);
+		if (primaryRepo && mergeBaseResult !== null) {
+			mergeBaseCache.set(primaryRepo.rootUri.fsPath, mergeBaseResult);
 		}
 
 		const entries: ReflogEntry[] = [];
@@ -147,7 +145,12 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			entries.push(...entriesWithRepo);
 		}
 
-		this.view?.webview.postMessage({ type: "reflogData", entries, branch, mergeBaseHash });
+		this.view?.webview.postMessage({ 
+			type: "reflogData", 
+			entries, 
+			branch, 
+			parentBranch: mergeBaseResult?.parentBranch ?? null 
+		});
 	}
 
 	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {

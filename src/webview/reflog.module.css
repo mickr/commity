@@ -636,3 +636,160 @@
 	color: var(--vscode-descriptionForeground);
 	opacity: 0.7;
 }
+
+.parentCommitsDrawer {
+	position: relative;
+	margin-top: 8px;
+}
+
+.parentCommitsDrawer::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 14px;
+	right: 14px;
+	height: 1px;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		var(--vscode-panel-border) 20%,
+		var(--vscode-panel-border) 80%,
+		transparent
+	);
+	opacity: 0.5;
+}
+
+.drawerOverlay {
+	position: relative;
+	display: block;
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	text-align: left;
+}
+
+.drawerOverlay:hover .drawerFade {
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		color-mix(in srgb, var(--vscode-list-hoverBackground) 50%, var(--vscode-editor-background)) 60%,
+		var(--vscode-editor-background) 100%
+	);
+}
+
+.drawerOverlay:hover .drawerLabel {
+	opacity: 1;
+}
+
+.drawerPreview {
+	padding: 8px 14px;
+}
+
+.previewItem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 0;
+	font-size: 11px;
+	opacity: 0.5;
+}
+
+.drawerOverlay:hover .previewItem {
+	opacity: 0.7;
+}
+
+.previewType {
+	flex-shrink: 0;
+	padding: 1px 4px;
+	border-radius: 3px;
+	font-size: 9px;
+	font-weight: 600;
+	text-transform: uppercase;
+	background: var(--vscode-badge-background);
+	color: var(--vscode-badge-foreground);
+}
+
+.previewMessage {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--vscode-foreground);
+}
+
+.previewHash {
+	flex-shrink: 0;
+	font-family: var(--vscode-editor-font-family);
+	font-size: 10px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.drawerFade {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	padding-bottom: 10px;
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		var(--vscode-editor-background) 70%
+	);
+	transition: background 0.15s ease;
+}
+
+.drawerLabel {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 10px;
+	color: var(--vscode-descriptionForeground);
+	opacity: 0.8;
+	transition: opacity 0.15s ease;
+}
+
+.drawerOverlay:focus-visible {
+	outline: none;
+}
+
+.drawerOverlay:focus-visible .drawerFade {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+
+.drawerOverlay:focus-visible .drawerLabel {
+	opacity: 1;
+}
+
+.collapseToggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	width: 100%;
+	padding: 8px 14px;
+	margin: 0;
+	background: transparent;
+	border: none;
+	border-top: 1px solid var(--vscode-panel-border);
+	color: var(--vscode-descriptionForeground);
+	font-size: 10px;
+	cursor: pointer;
+	opacity: 0.6;
+	transition: opacity 0.15s ease;
+}
+
+.collapseToggle:hover {
+	opacity: 1;
+}
+
+.collapseToggle:focus-visible {
+	opacity: 1;
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}

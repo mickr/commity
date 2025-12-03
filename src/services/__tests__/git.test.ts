@@ -1022,7 +1022,7 @@ describe("getMergeBaseHash", () => {
 		expect(result).toBeNull();
 	});
 
-	it("returns merge base hash when on a feature branch", async () => {
+	it("returns merge base result when on a feature branch", async () => {
 		mockIsomorphicGit.currentBranch.mockResolvedValue("feature/my-feature");
 		mockExecFileAsync.mockResolvedValue({ stdout: "abc123def456\n", stderr: "" });
 
@@ -1031,7 +1031,7 @@ describe("getMergeBaseHash", () => {
 		} as unknown as Repository;
 
 		const result = await getMergeBaseHash(mockRepository);
-		expect(result).toBe("abc123def456");
+		expect(result).toEqual({ hash: "abc123def456", parentBranch: "main" });
 		expect(mockExecFileAsync).toHaveBeenCalledWith(
 			"git",
 			["merge-base", "feature/my-feature", "main"],
@@ -1050,7 +1050,7 @@ describe("getMergeBaseHash", () => {
 		} as unknown as Repository;
 
 		const result = await getMergeBaseHash(mockRepository);
-		expect(result).toBe("def456abc123");
+		expect(result).toEqual({ hash: "def456abc123", parentBranch: "master" });
 		expect(mockExecFileAsync).toHaveBeenNthCalledWith(
 			1,
 			"git",

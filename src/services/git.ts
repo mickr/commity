@@ -486,12 +486,17 @@ function parseCommitType(message: string): CommitType | undefined {
 	return undefined;
 }
 
+export interface MergeBaseResult {
+	hash: string;
+	parentBranch: string;
+}
+
 /**
  * Gets the merge base hash between the current branch and a common parent branch.
  * This identifies where the current branch diverged from its parent.
  * Returns null if no merge base can be found (e.g., on main/master itself).
  */
-export async function getMergeBaseHash(repository: Repository): Promise<string | null> {
+export async function getMergeBaseHash(repository: Repository): Promise<MergeBaseResult | null> {
 	const cwd = repository.rootUri.fsPath;
 
 	try {
@@ -513,7 +518,7 @@ export async function getMergeBaseHash(repository: Repository): Promise<string |
 			try {
 				const result = await runGit(["merge-base", currentBranch, parentBranch], cwd);
 				if (result) {
-					return result;
+					return { hash: result, parentBranch };
 				}
 			} catch {
 				// This parent branch doesn't exist or there's no common ancestor
