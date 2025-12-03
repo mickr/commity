@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/mickr/commity/compare/v2.0.1...v2.1.0) (2025-12-03)
+
+
+### Features
+
+* **reflog:** add collapsible parent commits section with visual delimiter ([c4bc410](https://github.com/mickr/commity/commit/c4bc4105cd22c33616ac7966cc10b8c58e542690))
+
 ## [2.0.1](https://github.com/mickr/commity/compare/v2.0.0...v2.0.1) (2025-12-01)
 
 
