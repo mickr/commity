@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "../reflog.module.css";
 import ReflogEntryComponent, { type ReflogEntry } from "./reflog-item";
@@ -16,6 +16,7 @@ interface Message {
 	type: string;
 	entries?: ReflogEntry[];
 	branch?: string | null;
+	parentBranch?: string | null;
 	key?: string;
 	hash?: string;
 	files?: FileInfo[];
@@ -37,6 +38,7 @@ const vscode = acquireVsCodeApi();
 function App() {
 	const [entries, setEntries] = useState<ReflogEntry[]>([]);
 	const [branch, setBranch] = useState<string | null>(null);
+	const [parentBranch, setParentBranch] = useState<string | null>(null);
 	const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 	const [firstClickIndex, setFirstClickIndex] = useState<number | null>(null);
 	const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -46,10 +48,19 @@ function App() {
 		parentHash?: string;
 		isCollapsed?: boolean;
 	} | null>(null);
+	const [hideParentCommits, setHideParentCommits] = useState(true);
 	const listRef = useRef<HTMLDivElement>(null);
 	const appRef = useRef<HTMLDivElement>(null);
 
 	const isProtectedBranch = branch !== null && PROTECTED_BRANCHES.includes(branch.toLowerCase());
+
+	// Check if there are any parent commits to potentially hide
+	const hasParentCommits = entries.some((e) => e.isNewCommit === false);
+
+	// Filter entries based on hideParentCommits setting
+	const visibleEntries = hideParentCommits
+		? entries.filter((e) => e.isNewCommit !== false)
+		: entries;
 
 	useEffect(() => {
 		const messageHandler = (event: MessageEvent<Message>) => {
@@ -57,6 +68,7 @@ function App() {
 			if (message.type === "reflogData") {
 				setEntries(message.entries || []);
 				setBranch(message.branch ?? null);
+				setParentBranch(message.parentBranch ?? null);
 				setSelectedIndices(new Set());
 				setFirstClickIndex(null);
 				setFocusedIndex(0);
@@ -332,22 +344,108 @@ function App() {
 					<p className={styles.loading}>Loading reflog...</p>
 				) : (
 					<div className={styles.reflogList} ref={listRef}>
-						{entries.map((entry, index) => (
-							<ReflogEntryComponent
-								key={`${entry.hash}-${index}`}
-								entry={entry}
-								index={index}
-								isSelected={selectedIndices.has(index)}
-								isFocused={index === focusedIndex}
-								onSelect={handleSelectEntry}
-								files={expandedFiles?.hash === entry.hash ? expandedFiles.files : undefined}
-								isCollapsed={
-									expandedFiles?.hash === entry.hash ? expandedFiles.isCollapsed : undefined
-								}
-								onOpenFile={handleOpenFileDiff}
-								onToggleFiles={() => handleToggleFiles(entry)}
-							/>
-						))}
+						{visibleEntries.map((entry, index) => {
+							// Check if we need to show the delimiter before this entry
+							// Show delimiter when transitioning from new commits to inherited commits
+							const prevEntry = index > 0 ? visibleEntries[index - 1] : null;
+							const showDelimiter =
+								prevEntry?.isNewCommit === true && entry.isNewCommit === false;
+
+							return (
+								<Fragment key={`${entry.hash}-${index}`}>
+									{showDelimiter && (
+										<div className={styles.branchDelimiter}>
+											<div className={styles.delimiterLine} />
+											<span className={styles.delimiterText}>
+												Commits from parent branch
+											</span>
+											<div className={styles.delimiterLine} />
+										</div>
+									)}
+									<ReflogEntryComponent
+										entry={entry}
+										index={index}
+										isSelected={selectedIndices.has(index)}
+										isFocused={index === focusedIndex}
+										onSelect={handleSelectEntry}
+										files={expandedFiles?.hash === entry.hash ? expandedFiles.files : undefined}
+										isCollapsed={
+											expandedFiles?.hash === entry.hash ? expandedFiles.isCollapsed : undefined
+										}
+										onOpenFile={handleOpenFileDiff}
+										onToggleFiles={() => handleToggleFiles(entry)}
+									/>
+								</Fragment>
+							);
+						})}
+						{hasParentCommits && (() => {
+							const parentCommits = entries.filter((e) => e.isNewCommit === false);
+							const previewCommits = parentCommits.slice(0, 3);
+							const parentSectionId = "parent-commits-section";
+							return (
+								<div className={styles.parentCommitsDrawer} id={parentSectionId}>
+									{hideParentCommits && (
+										<button
+											type="button"
+											className={styles.drawerOverlay}
+											onClick={() => setHideParentCommits(false)}
+											aria-expanded={false}
+											aria-controls={parentSectionId}
+											aria-label={`Show ${parentCommits.length} commits from ${parentBranch ?? "parent branch"}`}
+										>
+											<div className={styles.drawerPreview}>
+												{previewCommits.map((entry) => (
+													<div key={entry.hash} className={styles.previewItem}>
+														{entry.commitType && (
+															<span className={styles.previewType}>{entry.commitType}</span>
+														)}
+														<span className={styles.previewMessage} title={entry.message}>
+															{entry.message}
+														</span>
+														<span className={styles.previewHash}>{entry.hash.substring(0, 7)}</span>
+													</div>
+												))}
+											</div>
+											<div className={styles.drawerFade}>
+												<span className={styles.drawerLabel}>
+													<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+														<path
+															d="M3 4.5L6 7.5L9 4.5"
+															stroke="currentColor"
+															strokeWidth="1.5"
+															strokeLinecap="round"
+															strokeLinejoin="round"
+														/>
+													</svg>
+													Show {parentCommits.length} from {parentBranch ?? "parent"}
+												</span>
+											</div>
+										</button>
+									)}
+									{!hideParentCommits && (
+										<button
+											type="button"
+											className={styles.collapseToggle}
+											onClick={() => setHideParentCommits(true)}
+											aria-expanded={true}
+											aria-controls={parentSectionId}
+											aria-label={`Hide commits from ${parentBranch ?? "parent branch"}`}
+										>
+											<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+												<path
+													d="M3 7.5L6 4.5L9 7.5"
+													stroke="currentColor"
+													strokeWidth="1.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												/>
+											</svg>
+											Hide {parentBranch ?? "parent"} commits
+										</button>
+									)}
+								</div>
+							);
+						})()}
 					</div>
 				)}
 			</div>

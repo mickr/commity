@@ -14,6 +14,7 @@ import {
 	performRevertCommit,
 	performCherryPick,
 	type ResetMode,
+	getMergeBaseHash,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 import { SquashEditorPanel } from "./squashEditorPanel";
@@ -91,25 +92,65 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		const git = gitExtension?.getAPI(1);
 
 		if (!git || git.repositories.length === 0) {
-			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null });
+			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null, parentBranch: null });
 			return;
 		}
 
 		const primaryRepo = this.getPrimaryRepository(git.repositories);
 		let branch: string | null = null;
+		const mergeBaseResult = await getMergeBaseHash(primaryRepo!);
 		if (primaryRepo && this.view) {
 			branch = await getActualCurrentBranch(primaryRepo);
 			this.view.title = branch ? `Reflog (${branch})` : "Reflog";
 		}
 
+		// Cache merge base results by repo path to avoid redundant computation
+		const mergeBaseCache = new Map<string, { hash: string; parentBranch: string } | null>();
+		const getMergeBaseForRepo = async (repo: Repository): Promise<string | null> => {
+			const repoPath = repo.rootUri.fsPath;
+			if (!mergeBaseCache.has(repoPath)) {
+				mergeBaseCache.set(repoPath, await getMergeBaseHash(repo));
+			}
+			return mergeBaseCache.get(repoPath)?.hash ?? null;
+		};
+
+		// Pre-cache the primary repo's merge base if available
+		if (primaryRepo && mergeBaseResult !== null) {
+			mergeBaseCache.set(primaryRepo.rootUri.fsPath, mergeBaseResult);
+		}
+
 		const entries: ReflogEntry[] = [];
 		for (const repo of git.repositories) {
 			const repoEntries = await getReflogEntries(repo);
-			const entriesWithRepo = repoEntries.map((e) => ({ ...e, repoRoot: repo.rootUri.fsPath }));
+			// Get merge base for this repo to mark new commits
+			const repoMergeBase = await getMergeBaseForRepo(repo);
+			let foundMergeBase = false;
+			const entriesWithRepo = repoEntries.map((e) => {
+				// Check if this is the merge base commit BEFORE computing isNewCommit
+				// The merge base commit itself is considered inherited (not new)
+				const isMergeBaseCommit = repoMergeBase && e.hash === repoMergeBase;
+				const isNewCommit = repoMergeBase ? !foundMergeBase && !isMergeBaseCommit : undefined;
+				
+				// Mark that we've found the merge base for subsequent commits
+				if (isMergeBaseCommit) {
+					foundMergeBase = true;
+				}
+				
+				return {
+					...e,
+					repoRoot: repo.rootUri.fsPath,
+					isNewCommit,
+				};
+			});
 			entries.push(...entriesWithRepo);
 		}
 
-		this.view?.webview.postMessage({ type: "reflogData", entries, branch });
+		this.view?.webview.postMessage({ 
+			type: "reflogData", 
+			entries, 
+			branch, 
+			parentBranch: mergeBaseResult?.parentBranch ?? null 
+		});
 	}
 
 	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {

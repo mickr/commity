@@ -44,6 +44,7 @@ import {
 	performSoftResetSquash,
 	performRebaseSquash,
 	performRevertCommit,
+	getMergeBaseHash,
 } from "../git";
 import type { Repository, Change, Status } from "../../types/git";
 
@@ -980,5 +981,110 @@ describe("performRevertCommit", () => {
 				message: "revert: test",
 			})
 		).rejects.toThrow();
+	});
+});
+
+describe("getMergeBaseHash", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("returns null when on a protected branch", async () => {
+		mockIsomorphicGit.currentBranch.mockResolvedValue("main");
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getMergeBaseHash(mockRepository);
+		expect(result).toBeNull();
+	});
+
+	it("returns null when on master branch", async () => {
+		mockIsomorphicGit.currentBranch.mockResolvedValue("master");
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getMergeBaseHash(mockRepository);
+		expect(result).toBeNull();
+	});
+
+	it("returns null when not on a branch", async () => {
+		mockIsomorphicGit.currentBranch.mockResolvedValue(undefined);
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getMergeBaseHash(mockRepository);
+		expect(result).toBeNull();
+	});
+
+	it("returns merge base result when on a feature branch", async () => {
+		mockIsomorphicGit.currentBranch.mockResolvedValue("feature/my-feature");
+		mockExecFileAsync.mockResolvedValue({ stdout: "abc123def456\n", stderr: "" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getMergeBaseHash(mockRepository);
+		expect(result).toEqual({ hash: "abc123def456", parentBranch: "main" });
+		expect(mockExecFileAsync).toHaveBeenCalledWith(
+			"git",
+			["merge-base", "feature/my-feature", "main"],
+			{ cwd: "/project" }
+		);
+	});
+
+	it("tries other parent branches if main doesn't exist", async () => {
+		mockIsomorphicGit.currentBranch.mockResolvedValue("feature/my-feature");
+		mockExecFileAsync
+			.mockRejectedValueOnce(new Error("fatal: Not a valid ref"))
+			.mockResolvedValueOnce({ stdout: "def456abc123\n", stderr: "" });
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getMergeBaseHash(mockRepository);
+		expect(result).toEqual({ hash: "def456abc123", parentBranch: "master" });
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(
+			1,
+			"git",
+			["merge-base", "feature/my-feature", "main"],
+			{ cwd: "/project" }
+		);
+		expect(mockExecFileAsync).toHaveBeenNthCalledWith(
+			2,
+			"git",
+			["merge-base", "feature/my-feature", "master"],
+			{ cwd: "/project" }
+		);
+	});
+
+	it("returns null if no parent branch exists", async () => {
+		mockIsomorphicGit.currentBranch.mockResolvedValue("feature/my-feature");
+		mockExecFileAsync.mockRejectedValue(new Error("fatal: Not a valid ref"));
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getMergeBaseHash(mockRepository);
+		expect(result).toBeNull();
+	});
+
+	it("returns null on git error", async () => {
+		mockIsomorphicGit.currentBranch.mockRejectedValue(new Error("Not a git repository"));
+
+		const mockRepository = {
+			rootUri: vscode.Uri.file("/project"),
+		} as unknown as Repository;
+
+		const result = await getMergeBaseHash(mockRepository);
+		expect(result).toBeNull();
 	});
 });

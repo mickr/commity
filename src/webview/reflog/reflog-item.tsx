@@ -29,6 +29,7 @@ export interface ReflogEntry {
 	totalAdditions?: number;
 	totalDeletions?: number;
 	commitType?: CommitType;
+	isNewCommit?: boolean; // True if this commit is after the merge base (new to this branch)
 }
 
 export interface FileInfo {
@@ -93,13 +94,9 @@ function ReflogEntryComponent({
 	const handleSelectionClick = useCallback(
 		(e: React.MouseEvent) => {
 			e.stopPropagation();
-			const isMultiSelect = e.shiftKey || e.metaKey || e.ctrlKey;
 			onSelect(index, e.shiftKey, e.metaKey || e.ctrlKey);
-			if (hasFiles && !isMultiSelect) {
-				onToggleFiles?.();
-			}
 		},
-		[index, onSelect, hasFiles, onToggleFiles]
+		[index, onSelect]
 	);
 
 	const handleFileClick = useCallback(
@@ -225,7 +222,13 @@ function ReflogEntryComponent({
 						</span>
 					)}
 					{hasFiles && (
-						<span className={`${styles.entryFiles} ${isExpanded ? styles.expanded : ""}`}>
+						<span
+							className={`${styles.entryFiles} ${isExpanded ? styles.expanded : ""}`}
+							onClick={(e) => {
+								e.stopPropagation();
+								onToggleFiles?.();
+							}}
+						>
 							<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
 								<path
 									d="M4.5 3L7.5 6L4.5 9"
