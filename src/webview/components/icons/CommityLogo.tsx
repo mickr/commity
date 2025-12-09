@@ -8,17 +8,15 @@ interface CommityLogoProps {
 }
 
 export function CommityLogo({ darkSrc, lightSrc, className, alt = "" }: CommityLogoProps) {
-	const [isLight, setIsLight] = useState(false);
+	// Check initial theme synchronously to avoid flash
+	const [isLight, setIsLight] = useState(() => document.body.classList.contains("vscode-light"));
 
 	useEffect(() => {
-		// Check initial theme
+		// Watch for theme changes
 		const checkTheme = () => {
 			setIsLight(document.body.classList.contains("vscode-light"));
 		};
 
-		checkTheme();
-
-		// Watch for theme changes
 		const observer = new MutationObserver(checkTheme);
 		observer.observe(document.body, {
 			attributes: true,
@@ -29,6 +27,11 @@ export function CommityLogo({ darkSrc, lightSrc, className, alt = "" }: CommityL
 	}, []);
 
 	const src = isLight ? lightSrc : darkSrc;
+
+	// Don't render if no source is available
+	if (!src) {
+		return null;
+	}
 
 	return <img src={src} className={className} alt={alt} />;
 }
