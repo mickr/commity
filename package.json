@@ -114,6 +114,11 @@
 		"views": {
 			"commity": [
 				{
+					"id": "commity.workingChangesView",
+					"name": "Working Changes",
+					"type": "webview"
+				},
+				{
 					"id": "commity.reflogView",
 					"name": "Reflog",
 					"type": "webview"

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { generateCommitMessage } from "./commands/generateCommitMessage";
 
 import { ReflogWebviewProvider } from "./providers/reflogWebviewProvider";
+import { WorkingChangesWebviewProvider } from "./providers/workingChangesWebviewProvider";
 import { GitContentProvider } from "./providers/gitContentProvider";
 import { initFireworksProvider } from "./services/ai-providers/fireworks";
 
@@ -10,6 +11,12 @@ export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand(
 		"commity.generateCommitMessage",
 		(sourceControl: vscode.SourceControl) => generateCommitMessage(sourceControl, context)
+	);
+
+	const workingChangesProvider = new WorkingChangesWebviewProvider(context.extensionUri);
+	const workingChangesView = vscode.window.registerWebviewViewProvider(
+		WorkingChangesWebviewProvider.viewType,
+		workingChangesProvider
 	);
 
 	const reflogProvider = new ReflogWebviewProvider(context.extensionUri, context);
@@ -43,6 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 		),
 		disposable,
 		refreshReflogCommand,
+		workingChangesView,
 		reflogView,
 		focusUpCommand,
 		focusDownCommand,

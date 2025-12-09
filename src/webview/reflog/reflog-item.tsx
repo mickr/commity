@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { STATUS_LABELS, type StatusLetter } from "../../types/git";
 import styles from "../reflog.module.css";
 
 export type CommitType =
@@ -34,7 +35,7 @@ export interface ReflogEntry {
 
 export interface FileInfo {
 	name: string;
-	status: string;
+	status: StatusLetter;
 	additions: number;
 	deletions: number;
 }
@@ -107,22 +108,7 @@ function ReflogEntryComponent({
 		[onOpenFile]
 	);
 
-	const getStatusLabel = (status: string) => {
-		switch (status) {
-			case "A":
-				return "Added";
-			case "D":
-				return "Deleted";
-			case "M":
-				return "Modified";
-			case "R":
-				return "Renamed";
-			case "C":
-				return "Copied";
-			default:
-				return "Changed";
-		}
-	};
+	const getStatusLabel = (status: StatusLetter) => STATUS_LABELS[status];
 
 	const handleHashClick = useCallback(
 		(e: React.MouseEvent) => {

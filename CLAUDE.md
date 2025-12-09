@@ -88,6 +88,7 @@ const repository = entry.repoRoot
 
 ## Code Style
 
+- **Simplicity is best** - prefer the simplest solution that works
 - TypeScript strict mode enabled
 - Use `node:` prefix for Node built-ins (e.g., `node:fs`, `node:path`)
 - camelCase for variables/functions, PascalCase for types/classes

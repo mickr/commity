@@ -1,16 +1,9 @@
 import { useEffect, useState, useCallback, useRef, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "../reflog.module.css";
-import ReflogEntryComponent, { type ReflogEntry } from "./reflog-item";
+import ReflogEntryComponent, { type ReflogEntry, type FileInfo } from "./reflog-item";
 import ContextMenu, { ContextMenuItem } from "../components/context-menu";
 import { KeymapProvider } from "../components/keymap-provider";
-
-interface FileInfo {
-	name: string;
-	status: string;
-	additions: number;
-	deletions: number;
-}
 
 interface Message {
 	type: string;
@@ -504,7 +497,7 @@ function App() {
 							</ContextMenuItem>
 						</>
 					)}
-					{focusedIndex !== 0 && (
+					{ entries.length > 0 && (
 						<ContextMenuItem className={styles.contextMenuItem} onClick={handleResetToFocused}>
 							<i className="codicon codicon-history" />
 							Reset to {entries[focusedIndex]?.hash?.substring(0, 7)}

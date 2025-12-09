@@ -4,10 +4,10 @@
 		"module": "ES2020",
 		"outDir": "../../out/webview",
 		"lib": ["ES2020", "DOM"],
-		"rootDir": ".",
+		"rootDir": "..",
 		"moduleResolution": "node",
 		"jsx": "react-jsx"
 	},
-	"include": ["./**/*.ts", "./**/*.tsx"],
-	"exclude": ["node_modules", ".vscode-test", "src/webview"]
+	"include": ["./**/*.ts", "./**/*.tsx", "../types/**/*.ts"],
+	"exclude": ["node_modules", ".vscode-test"]
 }

@@ -72,6 +72,22 @@ async function main() {
 		jsx: "automatic",
 	});
 
+	const workingChangesCtx = await esbuild.context({
+		entryPoints: ["src/webview/working-changes/index.tsx"],
+		bundle: true,
+		format: "iife",
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		platform: "browser",
+		outfile: "out/webview/working-changes/index.js",
+		logLevel: "silent",
+		loader: {
+			".module.css": "local-css",
+		},
+		jsx: "automatic",
+	});
+
 	const cssSource = path.join(__dirname, "src/webview/reflog.css");
 	const cssTarget = path.join(__dirname, "out/webview/reflog.css");
 
@@ -97,13 +113,16 @@ async function main() {
 		await extensionCtx.watch();
 		await webviewCtx.watch();
 		await squashEditorCtx.watch();
+		await workingChangesCtx.watch();
 	} else {
 		await extensionCtx.rebuild();
 		await webviewCtx.rebuild();
 		await squashEditorCtx.rebuild();
+		await workingChangesCtx.rebuild();
 		await extensionCtx.dispose();
 		await webviewCtx.dispose();
 		await squashEditorCtx.dispose();
+		await workingChangesCtx.dispose();
 	}
 }
 

@@ -6,6 +6,18 @@ export const enum RefType {
 	Tag,
 }
 
+export type StatusLetter = "A" | "M" | "D" | "R" | "C" | "U" | "?";
+
+export const STATUS_LABELS: Record<StatusLetter, string> = {
+	A: "Added",
+	M: "Modified",
+	D: "Deleted",
+	R: "Renamed",
+	C: "Copied",
+	U: "Untracked",
+	"?": "Unknown",
+};
+
 export const enum Status {
 	INDEX_MODIFIED,
 	INDEX_ADDED,

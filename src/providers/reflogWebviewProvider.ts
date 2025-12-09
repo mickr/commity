@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { randomBytes } from "node:crypto";
-import type { Repository } from "../types/git";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import type { Repository, StatusLetter } from "../types/git";
 import {
 	getActualCurrentBranch,
 	getReflogEntries,
@@ -18,6 +20,8 @@ import {
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 import { SquashEditorPanel } from "./squashEditorPanel";
+
+const execFileAsync = promisify(execFile);
 
 class ReflogDiffProvider implements vscode.TextDocumentContentProvider {
 	private changeEmitter = new vscode.EventEmitter<vscode.Uri>();
@@ -250,10 +254,6 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		const cwd = repository.rootUri.fsPath;
 
 		try {
-			const { execFile } = await import("node:child_process");
-			const { promisify } = await import("node:util");
-			const execFileAsync = promisify(execFile);
-
 			const [nameStatusResult, numstatResult] = await Promise.all([
 				execFileAsync("git", ["show", "--name-status", "--format=", entry.hash], {
 					cwd,
@@ -265,14 +265,14 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				}),
 			]);
 
-			const statusMap = new Map<string, string>();
+			const statusMap = new Map<string, StatusLetter>();
 			nameStatusResult.stdout
 				.split("\n")
 				.filter((line) => line.trim())
 				.forEach((line) => {
 					const match = line.match(/^([AMDRC])\t(.+)$/);
 					if (match) {
-						statusMap.set(match[2], match[1]);
+						statusMap.set(match[2], match[1] as StatusLetter);
 					}
 				});
 
@@ -993,7 +993,8 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 				<link href="${styleUri}" rel="stylesheet">
 				<title>Commity Reflog</title>
 				<style>
-					body {
+					html, body {
+						height: 100%;
 						padding: 0;
 						margin: 0;
 						font-family: var(--vscode-font-family);
