@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import type { StatusLetter } from "../../types/git";
 import styles from "./working-changes.module.css";
 import reflogStyles from "../reflog.module.css";
+import { CommityLogo } from "../components/icons/CommityLogo";
 
 interface FileChange {
 	path: string;
@@ -365,15 +366,11 @@ function App() {
 					className={`${styles.actionButton} ${styles.primary}`}
 					onClick={handleGenerateAndCommit}
 				>
-					<img
-						src={document.getElementById("app")?.dataset.commityLogoDark}
+					<CommityLogo
+						darkSrc={document.getElementById("app")?.dataset.commityLogoDark}
+						lightSrc={document.getElementById("app")?.dataset.commityLogoLight}
+						className={styles.commityIcon}
 						alt=""
-						className={`${styles.commityIcon} ${styles.darkOnly}`}
-					/>
-					<img
-						src={document.getElementById("app")?.dataset.commityLogoLight}
-						alt=""
-						className={`${styles.commityIcon} ${styles.lightOnly}`}
 					/>
 					<span>Commit</span>
 				</button>
