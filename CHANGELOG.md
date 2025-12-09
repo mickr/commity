@@ -1,3 +1,10 @@
+# [2.2.0](https://github.com/mickr/commity/compare/v2.1.0...v2.2.0) (2025-12-09)
+
+
+### Features
+
+* **ui:** add working changes view and improve reflog UI ([8b88ac6](https://github.com/mickr/commity/commit/8b88ac65daeb409df18f5b12319863996069b829))
+
 # [2.1.0](https://github.com/mickr/commity/compare/v2.0.1...v2.1.0) (2025-12-03)
 
 
