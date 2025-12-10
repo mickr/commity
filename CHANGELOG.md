@@ -1,3 +1,15 @@
+# [2.3.0](https://github.com/mickr/commity/compare/v2.2.0...v2.3.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* **tests:** mock workspace file system watcher in working changes provider tests - Add mock for workspace.createFileSystemWatcher in workingChangesWebviewProvider test - Include onDidChange, onDidCreate, onDidDelete, and dispose method mocks ([23c8e75](https://github.com/mickr/commity/commit/23c8e75250bb5f838b14657cf24f12dda069e48f))
+
+
+### Features
+
+* **ui:** add refresh button for working changes and improve auto-refresh ([4bed621](https://github.com/mickr/commity/commit/4bed62125e1bdd9dbd6f2ae8579d62ae7430a6f5))
+
 # [2.2.0](https://github.com/mickr/commity/compare/v2.1.0...v2.2.0) (2025-12-09)
 
 
