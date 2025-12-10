@@ -49,6 +49,11 @@
 				"icon": "$(refresh)"
 			},
 			{
+				"command": "commity.refreshWorkingChanges",
+				"title": "Refresh Working Changes",
+				"icon": "$(refresh)"
+			},
+			{
 				"command": "commity.reflog.focusUp",
 				"title": "Focus Up",
 				"enablement": "view == commity.reflogView"
@@ -98,6 +103,11 @@
 				{
 					"command": "commity.refreshReflog",
 					"when": "view == commity.reflogView",
+					"group": "navigation"
+				},
+				{
+					"command": "commity.refreshWorkingChanges",
+					"when": "view == commity.workingChangesView",
 					"group": "navigation"
 				}
 			]

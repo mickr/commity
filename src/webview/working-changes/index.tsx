@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { StatusLetter } from "../../types/git";
+import { CommityIcon } from "../components/icons/CommityIcon";
 import styles from "./working-changes.module.css";
 import reflogStyles from "../reflog.module.css";
 import { CommityLogo } from "../components/icons/CommityLogo";
@@ -366,12 +367,7 @@ function App() {
 					className={`${styles.actionButton} ${styles.primary}`}
 					onClick={handleGenerateAndCommit}
 				>
-					<CommityLogo
-						darkSrc={document.getElementById("app")?.dataset.commityLogoDark}
-						lightSrc={document.getElementById("app")?.dataset.commityLogoLight}
-						className={styles.commityIcon}
-						alt=""
-					/>
+					<CommityIcon size={14} />
 					<span>Commit</span>
 				</button>
 			</div>

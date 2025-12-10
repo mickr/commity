@@ -63,6 +63,7 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	public static readonly viewType = "commity.workingChangesView";
 	private view?: vscode.WebviewView;
 	private stateChangeDisposable?: vscode.Disposable;
+	private fileWatcher?: vscode.FileSystemWatcher;
 	private updateTimeout?: NodeJS.Timeout;
 
 	constructor(private readonly extensionUri: vscode.Uri) {}
@@ -101,12 +102,14 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 
 		webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
 
-		// Subscribe to git state changes
+		// Subscribe to git state changes and file system changes
 		this.subscribeToGitChanges();
+		this.subscribeToFileChanges();
 
 		// Clean up when view is disposed
 		webviewView.onDidDispose(() => {
 			this.stateChangeDisposable?.dispose();
+			this.fileWatcher?.dispose();
 			if (this.updateTimeout) {
 				clearTimeout(this.updateTimeout);
 			}
@@ -132,6 +135,13 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 		}
 
 		this.stateChangeDisposable = vscode.Disposable.from(...disposables);
+	}
+
+	private subscribeToFileChanges() {
+		this.fileWatcher = vscode.workspace.createFileSystemWatcher("**/*");
+		this.fileWatcher.onDidChange(() => this.debouncedUpdate());
+		this.fileWatcher.onDidCreate(() => this.debouncedUpdate());
+		this.fileWatcher.onDidDelete(() => this.debouncedUpdate());
 	}
 
 	private debouncedUpdate() {

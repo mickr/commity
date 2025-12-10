@@ -31,6 +31,10 @@ export function activate(context: vscode.ExtensionContext) {
 		reflogProvider.refresh();
 	});
 
+	const refreshWorkingChangesCommand = vscode.commands.registerCommand("commity.refreshWorkingChanges", () => {
+		workingChangesProvider.refresh();
+	});
+
 	const focusUpCommand = vscode.commands.registerCommand("commity.reflog.focusUp", () => {
 		reflogProvider.focusUp();
 	});
@@ -50,6 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 		),
 		disposable,
 		refreshReflogCommand,
+		refreshWorkingChangesCommand,
 		workingChangesView,
 		reflogView,
 		focusUpCommand,
