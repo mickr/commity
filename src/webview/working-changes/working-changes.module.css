@@ -509,19 +509,3 @@
 	width: 16px;
 	height: 16px;
 }
-
-.darkOnly {
-	display: block;
-}
-
-.lightOnly {
-	display: none;
-}
-
-body.vscode-light .darkOnly {
-	display: none;
-}
-
-body.vscode-light .lightOnly {
-	display: block;
-}
