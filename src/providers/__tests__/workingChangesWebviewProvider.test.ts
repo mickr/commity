@@ -22,6 +22,14 @@ jest.mock("vscode", () => ({
 	Disposable: {
 		from: jest.fn(() => ({ dispose: jest.fn() })),
 	},
+	workspace: {
+		createFileSystemWatcher: jest.fn(() => ({
+			onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+			onDidCreate: jest.fn(() => ({ dispose: jest.fn() })),
+			onDidDelete: jest.fn(() => ({ dispose: jest.fn() })),
+			dispose: jest.fn(),
+		})),
+	},
 }), { virtual: true });
 
 jest.mock("node:child_process", () => ({
