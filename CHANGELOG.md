@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/mickr/commity/compare/v2.3.0...v2.4.0) (2025-12-17)
+
+
+### Features
+
+* **git:** improve repository detection and add discard changes functionality ([c11e4bd](https://github.com/mickr/commity/commit/c11e4bda26052c4df2c93008a4c6811cc63d1f25))
+
 # [2.3.0](https://github.com/mickr/commity/compare/v2.2.0...v2.3.0) (2025-12-10)
 
 
