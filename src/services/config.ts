@@ -1,16 +1,14 @@
 // read commity configuration file
 import fs from "node:fs";
 import path from "node:path";
-import * as vscode from "vscode";
 import yaml from "js-yaml";
 import { configurationSchema } from "../types/config";
-import type { API, Repository } from "../types/git";
+import { getVSCodeGitAPI } from "./git";
 
 export function readConfiguration() {
 	// Use git repository root instead of workspace root to support monorepos
-	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-	const git = gitExtension?.getAPI(1) as API | undefined;
-	const repository: Repository | undefined = git?.repositories[0];
+	const git = getVSCodeGitAPI();
+	const repository = git?.repositories[0];
 
 	if (!repository) {
 		return {

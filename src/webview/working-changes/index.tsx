@@ -4,7 +4,7 @@ import type { StatusLetter } from "../../types/git";
 import { CommityIcon } from "../components/icons/CommityIcon";
 import styles from "./working-changes.module.css";
 import reflogStyles from "../reflog.module.css";
-import { CommityLogo } from "../components/icons/CommityLogo";
+import { ContextMenuItem } from "../components/context-menu";
 
 interface FileChange {
 	path: string;
@@ -25,7 +25,7 @@ interface AdvisorMessage {
 interface ComplexitySummary {
 	sizeLevel: SizeLevel;
 	riskLevel: RiskLevel;
-	totalFiles: number;
+
 	totalAdditions: number;
 	totalDeletions: number;
 	directoryCount: number;
@@ -154,9 +154,6 @@ function App() {
 		);
 	}
 
-	const totalFiles = data.staged.count + data.modified.count + data.untracked.count;
-	const totalAdditions = data.staged.additions + data.modified.additions;
-	const totalDeletions = data.staged.deletions + data.modified.deletions;
 	const hasUnstaged = data.modified.count > 0 || data.untracked.count > 0;
 
 	const handleViewAllChanges = () => {
@@ -191,6 +188,11 @@ function App() {
 
 	const handleUnstageFile = (path: string) => {
 		vscode.postMessage({ type: "unstageFile", path });
+		setContextMenu(null);
+	};
+
+	const handleDiscardChanges = (file: FileChange) => {
+		vscode.postMessage({ type: "discardChanges", path: file.path, status: file.status });
 		setContextMenu(null);
 	};
 
@@ -378,24 +380,29 @@ function App() {
 					className={reflogStyles.contextMenu}
 					style={{ top: contextMenu.y, left: contextMenu.x }}
 				>
+					<ContextMenuItem
+						className={reflogStyles.contextMenuItem}
+						onClick={() => handleDiscardChanges(contextMenu.file)}
+					>
+						<i className="codicon codicon-discard" />
+						Discard changes
+					</ContextMenuItem>
 					{contextMenu.isStaged ? (
-						<button
-							type="button"
+						<ContextMenuItem
 							className={reflogStyles.contextMenuItem}
 							onClick={() => handleUnstageFile(contextMenu.file.path)}
 						>
 							<i className="codicon codicon-remove" />
 							Unstage
-						</button>
+						</ContextMenuItem>
 					) : (
-						<button
-							type="button"
+						<ContextMenuItem
 							className={reflogStyles.contextMenuItem}
 							onClick={() => handleStageFile(contextMenu.file.path)}
 						>
 							<i className="codicon codicon-add" />
 							Stage
-						</button>
+						</ContextMenuItem>
 					)}
 				</div>
 			)}

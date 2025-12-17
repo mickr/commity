@@ -17,6 +17,9 @@ import {
 	performCherryPick,
 	type ResetMode,
 	getMergeBaseHash,
+	getVSCodeGitAPI,
+	getPrimaryRepository,
+	getRepositoryByRoot,
 } from "../services/git";
 import { GitContentProvider } from "./gitContentProvider";
 import { SquashEditorPanel } from "./squashEditorPanel";
@@ -92,15 +95,13 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async updateReflog() {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			this.view?.webview.postMessage({ type: "reflogData", entries: [], branch: null, parentBranch: null });
 			return;
 		}
 
-		const primaryRepo = this.getPrimaryRepository(git.repositories);
+		const primaryRepo = getPrimaryRepository(git.repositories);
 		let branch: string | null = null;
 		const mergeBaseResult = await getMergeBaseHash(primaryRepo!);
 		if (primaryRepo && this.view) {
@@ -157,17 +158,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
-	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {
-		const activeEditor = vscode.window.activeTextEditor;
-		if (activeEditor) {
-			const activePath = activeEditor.document.uri.fsPath;
-			const match = repositories.find((repo) => activePath.startsWith(repo.rootUri.fsPath));
-			if (match) {
-				return match;
-			}
-		}
-		return repositories[0];
-	}
+
 
 	private async handleMessage(message: { type: string; [key: string]: unknown }) {
 		switch (message.type) {
@@ -243,14 +234,17 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleRequestCommitFiles(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
-		const repository = git.repositories[0];
+		const repository = entry.repoRoot
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
+		if (!repository) {
+			return;
+		}
 		const cwd = repository.rootUri.fsPath;
 
 		try {
@@ -308,14 +302,17 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleSelectEntry(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
-		const repository = git.repositories[0];
+		const repository = entry.repoRoot
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
+		if (!repository) {
+			return;
+		}
 		const cwd = repository.rootUri.fsPath;
 
 		try {
@@ -371,14 +368,18 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleSelectEntries(entries: ReflogEntry[]) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0 || entries.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git || entries.length === 0) {
 			return;
 		}
 
-		const repository = git.repositories[0];
+		const firstEntry = entries[0];
+		const repository = firstEntry.repoRoot
+			? getRepositoryByRoot(git.repositories, firstEntry.repoRoot)
+			: getPrimaryRepository(git.repositories);
+		if (!repository) {
+			return;
+		}
 		const cwd = repository.rootUri.fsPath;
 
 		// entries[0] is the newest, entries[length-1] is the oldest
@@ -449,14 +450,18 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleCompareEntries(entries: ReflogEntry[]) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0 || entries.length !== 2) {
+		const git = getVSCodeGitAPI();
+		if (!git || entries.length !== 2) {
 			return;
 		}
 
-		const repository = git.repositories[0];
+		const firstEntry = entries[0];
+		const repository = firstEntry.repoRoot
+			? getRepositoryByRoot(git.repositories, firstEntry.repoRoot)
+			: getPrimaryRepository(git.repositories);
+		if (!repository) {
+			return;
+		}
 		const cwd = repository.rootUri.fsPath;
 
 		// entries[0] is the newest, entries[1] is the oldest (based on index sorting from frontend)
@@ -522,18 +527,15 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleResetToEntry(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			void vscode.window.showErrorMessage("No Git repository found");
 			return;
 		}
 
 		const repository = entry.repoRoot
-			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
-			: git.repositories[0];
-
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
 		if (!repository) {
 			void vscode.window.showErrorMessage("Repository not found");
 			return;
@@ -615,17 +617,14 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleAmendCommit(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
 		const repository = entry.repoRoot
-			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
-			: git.repositories[0];
-
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
 		if (!repository) {
 			vscode.window.showErrorMessage("Repository not found");
 			return;
@@ -635,17 +634,14 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleUndoLastCommit(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
 		const repository = entry.repoRoot
-			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
-			: git.repositories[0];
-
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
 		if (!repository) {
 			vscode.window.showErrorMessage("Repository not found");
 			return;
@@ -673,17 +669,14 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleRevertCommit(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
 		const repository = entry.repoRoot
-			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
-			: git.repositories[0];
-
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
 		if (!repository) {
 			vscode.window.showErrorMessage("Repository not found");
 			return;
@@ -758,10 +751,8 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleSquashCommits(entries: ReflogEntry[], interactive: boolean) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0 || entries.length < 2) {
+		const git = getVSCodeGitAPI();
+		if (!git || entries.length < 2) {
 			return;
 		}
 
@@ -772,8 +763,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 			return;
 		}
 
-		const repository = git.repositories.find((r: Repository) => r.rootUri.fsPath === firstRepoRoot);
-
+		const repository = getRepositoryByRoot(git.repositories, firstRepoRoot);
 		if (!repository) {
 			vscode.window.showErrorMessage("Repository not found");
 			return;
@@ -844,18 +834,15 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleCheckoutCommit(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			void vscode.window.showErrorMessage("No Git repository found");
 			return;
 		}
 
 		const repository = entry.repoRoot
-			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
-			: git.repositories[0];
-
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
 		if (!repository) {
 			void vscode.window.showErrorMessage("Repository not found");
 			return;
@@ -874,7 +861,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		try {
-			await repository.checkout(entry.hash);
+			await repository.checkout?.(entry.hash);
 			vscode.window.showInformationMessage(`Checked out commit ${shortHash}`);
 			this.refresh();
 		} catch (error) {
@@ -885,18 +872,15 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async handleCherryPickCommit(entry: ReflogEntry) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			void vscode.window.showErrorMessage("No Git repository found");
 			return;
 		}
 
 		const repository = entry.repoRoot
-			? git.repositories.find((r: Repository) => r.rootUri.fsPath === entry.repoRoot)
-			: git.repositories[0];
-
+			? getRepositoryByRoot(git.repositories, entry.repoRoot)
+			: getPrimaryRepository(git.repositories);
 		if (!repository) {
 			void vscode.window.showErrorMessage("Repository not found");
 			return;
@@ -941,7 +925,7 @@ export class ReflogWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		try {
-			await repository.checkout(selectedBranch.label);
+			await repository.checkout?.(selectedBranch.label);
 
 			const { shortCommitHash } = await performCherryPick({
 				repository,

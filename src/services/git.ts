@@ -2,10 +2,46 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { execFile, execFileSync, execSync } from "node:child_process";
 import { promisify } from "node:util";
+import * as vscode from "vscode";
 import * as git from "isomorphic-git";
-import type { Repository, Change } from "../types/git";
+import type { Repository, Change, API } from "../types/git";
 
 const execFileAsync = promisify(execFile);
+
+export function getVSCodeGitAPI(): API | undefined {
+	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+	const api = gitExtension?.getAPI(1) as API | undefined;
+	if (!api || api.repositories.length === 0) {
+		return undefined;
+	}
+	return api;
+}
+
+export function getPrimaryRepository(repositories: Repository[]): Repository | undefined {
+	const activeEditor = vscode.window.activeTextEditor;
+	if (activeEditor) {
+		const activePath = activeEditor.document.uri.fsPath;
+		const match = repositories.find((repo) => activePath.startsWith(repo.rootUri.fsPath));
+		if (match) {
+			return match;
+		}
+	}
+	return repositories[0];
+}
+
+export function getRepositoryForPath(
+	repositories: Repository[],
+	fsPath: string
+): Repository | undefined {
+	return repositories.find((repo) => fsPath.startsWith(repo.rootUri.fsPath));
+}
+
+export function getRepositoryByRoot(
+	repositories: Repository[],
+	rootFsPath: string
+): Repository | undefined {
+	return repositories.find((repo) => repo.rootUri.fsPath === rootFsPath);
+}
 
 export type FileDiff = {
 	diff: string;

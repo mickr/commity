@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Repository, StatusLetter } from "../types/git";
 import { Status, type Change } from "../types/git";
+import { getVSCodeGitAPI, getPrimaryRepository } from "../services/git";
 
 const execFileAsync = promisify(execFile);
 
@@ -97,6 +98,8 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 				await this.handleStageFile(message.path);
 			} else if (message.type === "unstageFile") {
 				await this.handleUnstageFile(message.path);
+			} else if (message.type === "discardChanges") {
+				await this.handleDiscardChanges(message.path, message.status);
 			}
 		});
 
@@ -117,10 +120,8 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	}
 
 	private subscribeToGitChanges() {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
@@ -158,14 +159,12 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	}
 
 	private async handleViewAllChanges() {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
-		const repository = this.getPrimaryRepository(git.repositories);
+		const repository = getPrimaryRepository(git.repositories);
 		if (!repository) {
 			return;
 		}
@@ -175,14 +174,12 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	}
 
 	private async handleOpenFileDiff(filePath: string, isStaged: boolean) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
-		const repository = this.getPrimaryRepository(git.repositories);
+		const repository = getPrimaryRepository(git.repositories);
 		if (!repository) {
 			return;
 		}
@@ -199,14 +196,12 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	}
 
 	private async handleOpenMergeEditor(filePath: string) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
-		const repository = this.getPrimaryRepository(git.repositories);
+		const repository = getPrimaryRepository(git.repositories);
 		if (!repository) {
 			return;
 		}
@@ -216,15 +211,13 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	}
 
 	private async handleGenerateAndCommit() {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			vscode.window.showWarningMessage("No Git repository found");
 			return;
 		}
 
-		const repository = this.getPrimaryRepository(git.repositories);
+		const repository = getPrimaryRepository(git.repositories);
 		if (!repository) {
 			vscode.window.showWarningMessage("No Git repository found");
 			return;
@@ -236,14 +229,12 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	}
 
 	private async handleStageFile(filePath: string) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
-		const repository = this.getPrimaryRepository(git.repositories);
+		const repository = getPrimaryRepository(git.repositories);
 		if (!repository) {
 			return;
 		}
@@ -257,14 +248,12 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 	}
 
 	private async handleUnstageFile(filePath: string) {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
-
-		if (!git || git.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return;
 		}
 
-		const repository = this.getPrimaryRepository(git.repositories);
+		const repository = getPrimaryRepository(git.repositories);
 		if (!repository) {
 			return;
 		}
@@ -277,11 +266,45 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 		}
 	}
 
-	private async updateWorkingChanges() {
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const git = gitExtension?.getAPI(1);
+	private async handleDiscardChanges(filePath: string, status: StatusLetter) {
+		const git = getVSCodeGitAPI();
+		
+		if (!git) {
+			return;
+		}
 
-		if (!git || git.repositories.length === 0) {
+		const repository = getPrimaryRepository(git.repositories);
+		if (!repository) {
+			return;
+		}
+
+		const action = status === "U" ? "delete" : "discard changes in";
+		const confirm = await vscode.window.showWarningMessage(
+			`Are you sure you want to ${action}?`,
+			{ modal: true },
+			"Discard"
+		);
+
+		if (confirm !== "Discard") {
+			return;
+		}
+
+		try {
+			const absolutePath = vscode.Uri.joinPath(repository.rootUri, filePath).fsPath;
+
+			if (status === "U") {
+				await vscode.workspace.fs.delete(vscode.Uri.file(absolutePath));
+			} else {
+				await repository.clean?.([absolutePath]);
+			}
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to discard changes: ${error}`);
+		}
+	}
+
+	private async updateWorkingChanges() {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			this.view?.webview.postMessage({
 				type: "workingChangesData",
 				data: null,
@@ -289,7 +312,7 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 			return;
 		}
 
-		const repository = this.getPrimaryRepository(git.repositories);
+		const repository = getPrimaryRepository(git.repositories);
 		if (!repository) {
 			this.view?.webview.postMessage({
 				type: "workingChangesData",
@@ -382,7 +405,9 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 		const result = new Map<string, { additions: number; deletions: number }>();
 
 		for (const line of stdout.split("\n")) {
-			if (!line.trim()) continue;
+			if (!line.trim()) {
+				continue;
+			}
 			const parts = line.split("\t");
 			if (parts.length >= 3) {
 				const additions = parts[0] === "-" ? 0 : parseInt(parts[0], 10);
@@ -558,18 +583,6 @@ export class WorkingChangesWebviewProvider implements vscode.WebviewViewProvider
 			return "test";
 		}
 		return ext;
-	}
-
-	private getPrimaryRepository(repositories: Repository[]): Repository | undefined {
-		const activeEditor = vscode.window.activeTextEditor;
-		if (activeEditor) {
-			const activePath = activeEditor.document.uri.fsPath;
-			const match = repositories.find((repo) => activePath.startsWith(repo.rootUri.fsPath));
-			if (match) {
-				return match;
-			}
-		}
-		return repositories[0];
 	}
 
 	private getHtmlForWebview(webview: vscode.Webview): string {

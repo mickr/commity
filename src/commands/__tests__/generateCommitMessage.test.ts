@@ -31,14 +31,17 @@ jest.mock("../../services/config");
 import * as vscode from "vscode";
 import { generateCommitMessage } from "../generateCommitMessage";
 import { FireworksProvider } from "../../services/ai-providers/fireworks";
-import { getDiffs, getCurrentBranch, getCurrentAuthor } from "../../services/git";
+import { getDiffs, getCurrentBranch, getCurrentAuthor, getVSCodeGitAPI, getRepositoryByRoot } from "../../services/git";
 import { readConfiguration } from "../../services/config";
+import type { API, Repository } from "../../types/git";
 
 const mockFireworksProvider = FireworksProvider as jest.MockedClass<typeof FireworksProvider>;
 const mockGetDiffs = getDiffs as jest.MockedFunction<typeof getDiffs>;
 const mockGetCurrentBranch = getCurrentBranch as jest.MockedFunction<typeof getCurrentBranch>;
 const mockGetCurrentAuthor = getCurrentAuthor as jest.MockedFunction<typeof getCurrentAuthor>;
 const mockReadConfiguration = readConfiguration as jest.MockedFunction<typeof readConfiguration>;
+const mockGetVSCodeGitAPI = getVSCodeGitAPI as jest.MockedFunction<typeof getVSCodeGitAPI>;
+const mockGetRepositoryByRoot = getRepositoryByRoot as jest.MockedFunction<typeof getRepositoryByRoot>;
 
 describe("generateCommitMessage", () => {
 	const mockContext = {
@@ -48,7 +51,7 @@ describe("generateCommitMessage", () => {
 	const mockRepository = {
 		inputBox: { value: "" },
 		rootUri: { fsPath: "/project" },
-	};
+	} as unknown as Repository;
 
 	const mockSourceControl = {
 		rootUri: { fsPath: "/project" },
@@ -56,16 +59,13 @@ describe("generateCommitMessage", () => {
 
 	const mockGitApi = {
 		repositories: [mockRepository],
-	};
+	} as unknown as API;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 
-		(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-			exports: {
-				getAPI: jest.fn().mockReturnValue(mockGitApi),
-			},
-		});
+		mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+		mockGetRepositoryByRoot.mockReturnValue(mockRepository);
 
 		mockGetDiffs.mockReturnValue({
 			"src/test.ts": { diff: "+const x = 1;" },
@@ -100,11 +100,7 @@ describe("generateCommitMessage", () => {
 	});
 
 	it("shows warning when no repository is found", async () => {
-		(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-			exports: {
-				getAPI: jest.fn().mockReturnValue({ repositories: [] }),
-			},
-		});
+		mockGetVSCodeGitAPI.mockReturnValue(undefined);
 
 		await generateCommitMessage(mockSourceControl, mockContext);
 
@@ -348,21 +344,18 @@ describe("generateCommitMessage", () => {
 			const mockRepo1 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/project1" },
-			};
+			} as unknown as Repository;
 			const mockRepo2 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/project2" },
-			};
+			} as unknown as Repository;
 
 			const mockMultiGitApi = {
 				repositories: [mockRepo1, mockRepo2],
-			};
+			} as unknown as API;
 
-			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-				exports: {
-					getAPI: jest.fn().mockReturnValue(mockMultiGitApi),
-				},
-			});
+			mockGetVSCodeGitAPI.mockReturnValue(mockMultiGitApi);
+			mockGetRepositoryByRoot.mockReturnValue(mockRepo2);
 
 			const sourceControlForRepo2 = {
 				rootUri: { fsPath: "/project2" },
@@ -375,33 +368,30 @@ describe("generateCommitMessage", () => {
 
 			await generateCommitMessage(sourceControlForRepo2, mockContext);
 
-			expect(mockRepo2.inputBox.value).toBe("Commit for repo2");
-			expect(mockRepo1.inputBox.value).toBe("");
+			expect((mockRepo2 as { inputBox: { value: string } }).inputBox.value).toBe("Commit for repo2");
+			expect((mockRepo1 as { inputBox: { value: string } }).inputBox.value).toBe("");
 		});
 
 		it("handles multiple repositories in workspace", async () => {
 			const mockRepo1 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/workspace/repo1" },
-			};
+			} as unknown as Repository;
 			const mockRepo2 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/workspace/repo2" },
-			};
+			} as unknown as Repository;
 			const mockRepo3 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/workspace/repo3" },
-			};
+			} as unknown as Repository;
 
 			const mockMultiGitApi = {
 				repositories: [mockRepo1, mockRepo2, mockRepo3],
-			};
+			} as unknown as API;
 
-			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-				exports: {
-					getAPI: jest.fn().mockReturnValue(mockMultiGitApi),
-				},
-			});
+			mockGetVSCodeGitAPI.mockReturnValue(mockMultiGitApi);
+			mockGetRepositoryByRoot.mockReturnValue(mockRepo1);
 
 			const sourceControlForRepo1 = {
 				rootUri: { fsPath: "/workspace/repo1" },
@@ -414,26 +404,23 @@ describe("generateCommitMessage", () => {
 
 			await generateCommitMessage(sourceControlForRepo1, mockContext);
 
-			expect(mockRepo1.inputBox.value).toBe("First repo commit");
-			expect(mockRepo2.inputBox.value).toBe("");
-			expect(mockRepo3.inputBox.value).toBe("");
+			expect((mockRepo1 as { inputBox: { value: string } }).inputBox.value).toBe("First repo commit");
+			expect((mockRepo2 as { inputBox: { value: string } }).inputBox.value).toBe("");
+			expect((mockRepo3 as { inputBox: { value: string } }).inputBox.value).toBe("");
 		});
 
 		it("shows warning when sourceControl doesn't match any repository", async () => {
 			const mockRepo1 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/project1" },
-			};
+			} as unknown as Repository;
 
 			const mockGitApi = {
 				repositories: [mockRepo1],
-			};
+			} as unknown as API;
 
-			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-				exports: {
-					getAPI: jest.fn().mockReturnValue(mockGitApi),
-				},
-			});
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetRepositoryByRoot.mockReturnValue(undefined);
 
 			const nonMatchingSourceControl = {
 				rootUri: { fsPath: "/different/project" },
@@ -448,21 +435,18 @@ describe("generateCommitMessage", () => {
 			const mockRepo1 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/project1" },
-			};
+			} as unknown as Repository;
 			const mockRepo2 = {
 				inputBox: { value: "" },
 				rootUri: { fsPath: "/project2" },
-			};
+			} as unknown as Repository;
 
 			const mockMultiGitApi = {
 				repositories: [mockRepo1, mockRepo2],
-			};
+			} as unknown as API;
 
-			(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-				exports: {
-					getAPI: jest.fn().mockReturnValue(mockMultiGitApi),
-				},
-			});
+			mockGetVSCodeGitAPI.mockReturnValue(mockMultiGitApi);
+			mockGetRepositoryByRoot.mockReturnValue(mockRepo2);
 
 			const sourceControlForRepo2 = {
 				rootUri: { fsPath: "/project2" },

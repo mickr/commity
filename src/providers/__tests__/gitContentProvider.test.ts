@@ -34,13 +34,19 @@ jest.mock(
 	{ virtual: true }
 );
 
+jest.mock("../../services/git");
+
 // Import after mocks are set up
 import { GitContentProvider } from "../gitContentProvider";
+import { getVSCodeGitAPI } from "../../services/git";
+import type { API } from "../../types/git";
+
+const mockGetVSCodeGitAPI = getVSCodeGitAPI as jest.MockedFunction<typeof getVSCodeGitAPI>;
 
 describe("GitContentProvider", () => {
 	let provider: GitContentProvider;
 	let mockContext: vscode.ExtensionContext;
-	let mockGitApi: { repositories: Array<{ rootUri: { fsPath: string } }> };
+	let mockGitApi: API;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -50,13 +56,9 @@ describe("GitContentProvider", () => {
 
 		mockGitApi = {
 			repositories: [{ rootUri: { fsPath: "/repo" } }],
-		};
+		} as unknown as API;
 
-		(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-			exports: {
-				getAPI: () => mockGitApi,
-			},
-		});
+		mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
 	});
 
 	const createUri = (commitRef: string, filePath: string): vscode.Uri => {
@@ -150,7 +152,7 @@ describe("GitContentProvider", () => {
 		});
 
 		it("returns empty string when no git extension", async () => {
-			(vscode.extensions.getExtension as jest.Mock).mockReturnValue(undefined);
+			mockGetVSCodeGitAPI.mockReturnValue(undefined);
 
 			const uri = createUri("abc1234", "src/file.ts");
 			const result = await provider.provideTextDocumentContent(uri);
@@ -160,7 +162,7 @@ describe("GitContentProvider", () => {
 		});
 
 		it("returns empty string when no repositories", async () => {
-			mockGitApi.repositories = [];
+			mockGetVSCodeGitAPI.mockReturnValue(undefined);
 
 			const uri = createUri("abc1234", "src/file.ts");
 			const result = await provider.provideTextDocumentContent(uri);

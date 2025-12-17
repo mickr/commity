@@ -37,6 +37,9 @@ jest.mock("../../services/git", () => ({
 	ensureCleanWorkingTree: jest.fn().mockResolvedValue(true),
 	performCherryPick: jest.fn(),
 	getMergeBaseHash: jest.fn().mockResolvedValue(null),
+	getVSCodeGitAPI: jest.fn(),
+	getPrimaryRepository: jest.fn(),
+	getRepositoryByRoot: jest.fn(),
 }));
 
 describe("ReflogWebviewProvider", () => {
@@ -68,11 +71,9 @@ describe("ReflogWebviewProvider", () => {
 			repositories: [],
 		};
 
-		(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-			exports: {
-				getAPI: () => mockGitApi,
-			},
-		});
+		(gitService.getVSCodeGitAPI as jest.Mock).mockReturnValue(mockGitApi);
+		(gitService.getPrimaryRepository as jest.Mock).mockReturnValue(undefined);
+		(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(undefined);
 
 		provider = new ReflogWebviewProvider(mockExtensionUri, mockContext);
 		// Initialize the view
@@ -97,6 +98,7 @@ describe("ReflogWebviewProvider", () => {
 		it("sends branch info with reflog data", async () => {
 			const mockRepo = { rootUri: { fsPath: "/repo1" } };
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getPrimaryRepository as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
 			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([]);
 
@@ -111,7 +113,7 @@ describe("ReflogWebviewProvider", () => {
 		});
 
 		it("sends null branch when no repositories", async () => {
-			mockGitApi.repositories = [];
+			(gitService.getVSCodeGitAPI as jest.Mock).mockReturnValue(undefined);
 
 			await callUpdateReflog();
 
@@ -126,6 +128,7 @@ describe("ReflogWebviewProvider", () => {
 		it("sends branch name for feature branches", async () => {
 			const mockRepo = { rootUri: { fsPath: "/repo1" } };
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getPrimaryRepository as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("feature/my-feature");
 			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([]);
 
@@ -142,6 +145,7 @@ describe("ReflogWebviewProvider", () => {
 		it("sends parent branch name when available", async () => {
 			const mockRepo = { rootUri: { fsPath: "/repo1" } };
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getPrimaryRepository as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("feature/my-feature");
 			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([
 				{ hash: "abc123", message: "new commit", timestamp: "2024-01-01" },
@@ -165,6 +169,7 @@ describe("ReflogWebviewProvider", () => {
 		it("marks commits as new before merge base", async () => {
 			const mockRepo = { rootUri: { fsPath: "/repo1" } };
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getPrimaryRepository as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("feature/my-feature");
 			(gitService.getReflogEntries as jest.Mock).mockResolvedValue([
 				{ hash: "new1", message: "newest commit", timestamp: "2024-01-01" },
@@ -257,6 +262,7 @@ describe("ReflogWebviewProvider", () => {
 		const repoRoot = "/repo1";
 		const mockRepo = { rootUri: { fsPath: repoRoot } };
 		mockGitApi.repositories = [mockRepo];
+		(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 		
 		(gitService.getHeadHash as jest.Mock).mockResolvedValue("hash1");
 		(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Squash");
@@ -288,6 +294,7 @@ describe("ReflogWebviewProvider", () => {
 		const repoRoot = "/repo1";
 		const mockRepo = { rootUri: { fsPath: repoRoot } };
 		mockGitApi.repositories = [mockRepo];
+		(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 		
 		(gitService.getHeadHash as jest.Mock).mockResolvedValue("other-head");
 		(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Squash");
@@ -318,6 +325,7 @@ describe("ReflogWebviewProvider", () => {
 		const repoRoot = "/repo1";
 		const mockRepo = { rootUri: { fsPath: repoRoot } };
 		mockGitApi.repositories = [mockRepo];
+		(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 		
 		(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined); // User cancels/closes modal
 		
@@ -345,6 +353,7 @@ describe("ReflogWebviewProvider", () => {
 		const repoRoot = "/repo1";
 		const mockRepo = { rootUri: { fsPath: repoRoot } };
 		mockGitApi.repositories = [mockRepo];
+		(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 		
 		(gitService.getHeadHash as jest.Mock).mockResolvedValue("hash1");
 		(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Squash");
@@ -370,7 +379,7 @@ describe("ReflogWebviewProvider", () => {
 
 	describe("Checkout Tests", () => {
 		it("fails if no git repositories", async () => {
-			mockGitApi.repositories = [];
+			(gitService.getVSCodeGitAPI as jest.Mock).mockReturnValue(undefined);
 
 			await callHandleMessage({
 				type: "checkoutCommit",
@@ -382,6 +391,7 @@ describe("ReflogWebviewProvider", () => {
 
 		it("fails if repository not found", async () => {
 			mockGitApi.repositories = [{ rootUri: { fsPath: "/different-repo" } }];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(undefined);
 
 			await callHandleMessage({
 				type: "checkoutCommit",
@@ -397,6 +407,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn(),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
 
 			await callHandleMessage({
@@ -413,6 +424,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn().mockResolvedValue(undefined),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Checkout");
 
 			await callHandleMessage({
@@ -432,6 +444,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn().mockRejectedValue(new Error("Checkout failed")),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Checkout");
 
 			await callHandleMessage({
@@ -447,7 +460,7 @@ describe("ReflogWebviewProvider", () => {
 
 	describe("Cherry-pick Tests", () => {
 		it("fails if no git repositories", async () => {
-			mockGitApi.repositories = [];
+			(gitService.getVSCodeGitAPI as jest.Mock).mockReturnValue(undefined);
 
 			await callHandleMessage({
 				type: "cherryPickCommit",
@@ -463,6 +476,7 @@ describe("ReflogWebviewProvider", () => {
 				getBranches: jest.fn().mockResolvedValue([]),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 
 			await callHandleMessage({
 				type: "cherryPickCommit",
@@ -478,6 +492,7 @@ describe("ReflogWebviewProvider", () => {
 				getBranches: jest.fn().mockResolvedValue([{ name: "main" }]),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
 
 			await callHandleMessage({
@@ -497,6 +512,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn(),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
 			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue(undefined);
 
@@ -515,6 +531,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn(),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
 			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
 			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(false);
@@ -537,6 +554,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn().mockResolvedValue(undefined),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
 			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
 			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(true);
@@ -567,6 +585,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn().mockResolvedValue(undefined),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
 			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
 			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(true);
@@ -591,6 +610,7 @@ describe("ReflogWebviewProvider", () => {
 				checkout: jest.fn().mockResolvedValue(undefined),
 			};
 			mockGitApi.repositories = [mockRepo];
+			(gitService.getRepositoryByRoot as jest.Mock).mockReturnValue(mockRepo);
 			(gitService.getActualCurrentBranch as jest.Mock).mockResolvedValue("main");
 			(vscode.window.showQuickPick as any) = jest.fn().mockResolvedValue({ label: "feature" });
 			(gitService.ensureCleanWorkingTree as jest.Mock).mockResolvedValue(true);

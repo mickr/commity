@@ -1,20 +1,22 @@
 import * as vscode from "vscode";
 import { FireworksProvider, FireworksError } from "../services/ai-providers/fireworks";
-import { getDiffs, getCurrentBranch, getCurrentAuthor } from "../services/git";
+import { getDiffs, getCurrentBranch, getCurrentAuthor, getVSCodeGitAPI, getRepositoryByRoot } from "../services/git";
 import { readConfiguration } from "../services/config";
 import type { CommitMessageRequest, DiffEntry } from "../types/ai";
-import type { Repository } from "../types/git";
 
 export const generateCommitMessage = async (
 	sourceControl: vscode.SourceControl,
 	context: vscode.ExtensionContext
 ) => {
-	const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-	const git = gitExtension?.getAPI(1);
+	const git = getVSCodeGitAPI();
+	if (!git) {
+		vscode.window.showWarningMessage("No Git repository found");
+		return;
+	}
 
-	const repository = git?.repositories.find(
-		(repo: Repository) => repo.rootUri.fsPath === sourceControl?.rootUri?.fsPath
-	);
+	const repository = sourceControl?.rootUri?.fsPath
+		? getRepositoryByRoot(git.repositories, sourceControl.rootUri.fsPath)
+		: git.repositories[0];
 
 	if (!repository) {
 		vscode.window.showWarningMessage("No Git repository found");

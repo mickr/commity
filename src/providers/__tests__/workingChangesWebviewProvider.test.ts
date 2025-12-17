@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
 import { WorkingChangesWebviewProvider } from "../workingChangesWebviewProvider";
+import { getVSCodeGitAPI, getPrimaryRepository } from "../../services/git";
+import type { Repository } from "../../types/git";
+
+const mockGetVSCodeGitAPI = getVSCodeGitAPI as jest.MockedFunction<typeof getVSCodeGitAPI>;
+const mockGetPrimaryRepository = getPrimaryRepository as jest.MockedFunction<typeof getPrimaryRepository>;
 
 jest.mock("vscode", () => ({
 	Uri: {
@@ -29,8 +34,16 @@ jest.mock("vscode", () => ({
 			onDidDelete: jest.fn(() => ({ dispose: jest.fn() })),
 			dispose: jest.fn(),
 		})),
+		fs: {
+			delete: jest.fn(),
+		},
 	},
 }), { virtual: true });
+
+jest.mock("../../services/git", () => ({
+	getVSCodeGitAPI: jest.fn(),
+	getPrimaryRepository: jest.fn(),
+}));
 
 jest.mock("node:child_process", () => ({
 	execFile: jest.fn(),
@@ -74,11 +87,8 @@ describe("WorkingChangesWebviewProvider", () => {
 			repositories: [],
 		};
 
-		(vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-			exports: {
-				getAPI: () => mockGitApi,
-			},
-		});
+		mockGetVSCodeGitAPI.mockReturnValue(undefined);
+		mockGetPrimaryRepository.mockReturnValue(undefined);
 
 		provider = new WorkingChangesWebviewProvider(mockExtensionUri);
 		provider.resolveWebviewView(
@@ -90,7 +100,7 @@ describe("WorkingChangesWebviewProvider", () => {
 
 	describe("Stage File", () => {
 		it("does nothing if no git repositories", async () => {
-			mockGitApi.repositories = [];
+			mockGetVSCodeGitAPI.mockReturnValue(undefined);
 
 			await messageHandler({ type: "stageFile", path: "src/file.ts" });
 
@@ -103,8 +113,10 @@ describe("WorkingChangesWebviewProvider", () => {
 				rootUri: { fsPath: "/repo" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				add: mockAdd,
-			};
+			} as unknown as Repository;
 			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
 
 			await messageHandler({ type: "stageFile", path: "src/file.ts" });
 
@@ -117,8 +129,10 @@ describe("WorkingChangesWebviewProvider", () => {
 				rootUri: { fsPath: "/repo" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				add: mockAdd,
-			};
+			} as unknown as Repository;
 			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
 
 			await messageHandler({ type: "stageFile", path: "src/file.ts" });
 
@@ -134,17 +148,15 @@ describe("WorkingChangesWebviewProvider", () => {
 				rootUri: { fsPath: "/repo1" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				add: mockAdd1,
-			};
+			} as unknown as Repository;
 			const mockRepo2 = {
 				rootUri: { fsPath: "/repo2" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				add: mockAdd2,
-			};
+			} as unknown as Repository;
 			mockGitApi.repositories = [mockRepo1, mockRepo2];
-
-			(vscode.window as any).activeTextEditor = {
-				document: { uri: { fsPath: "/repo2/src/other.ts" } },
-			};
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo2);
 
 			await messageHandler({ type: "stageFile", path: "src/file.ts" });
 
@@ -155,7 +167,7 @@ describe("WorkingChangesWebviewProvider", () => {
 
 	describe("Unstage File", () => {
 		it("does nothing if no git repositories", async () => {
-			mockGitApi.repositories = [];
+			mockGetVSCodeGitAPI.mockReturnValue(undefined);
 
 			await messageHandler({ type: "unstageFile", path: "src/file.ts" });
 
@@ -168,8 +180,10 @@ describe("WorkingChangesWebviewProvider", () => {
 				rootUri: { fsPath: "/repo" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				revert: mockRevert,
-			};
+			} as unknown as Repository;
 			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
 
 			await messageHandler({ type: "unstageFile", path: "src/file.ts" });
 
@@ -182,8 +196,10 @@ describe("WorkingChangesWebviewProvider", () => {
 				rootUri: { fsPath: "/repo" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				revert: mockRevert,
-			};
+			} as unknown as Repository;
 			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
 
 			await messageHandler({ type: "unstageFile", path: "src/file.ts" });
 
@@ -199,22 +215,150 @@ describe("WorkingChangesWebviewProvider", () => {
 				rootUri: { fsPath: "/repo1" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				revert: mockRevert1,
-			};
+			} as unknown as Repository;
 			const mockRepo2 = {
 				rootUri: { fsPath: "/repo2" },
 				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
 				revert: mockRevert2,
-			};
+			} as unknown as Repository;
 			mockGitApi.repositories = [mockRepo1, mockRepo2];
-
-			(vscode.window as any).activeTextEditor = {
-				document: { uri: { fsPath: "/repo2/src/other.ts" } },
-			};
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo2);
 
 			await messageHandler({ type: "unstageFile", path: "src/file.ts" });
 
 			expect(mockRevert2).toHaveBeenCalledWith(["/repo2/src/file.ts"]);
 			expect(mockRevert1).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("Discard Changes", () => {
+		it("does nothing if no git repositories", async () => {
+			mockGetVSCodeGitAPI.mockReturnValue(undefined);
+
+			await messageHandler({ type: "discardChanges", path: "src/file.ts", status: "M" });
+
+			expect(vscode.window.showWarningMessage).not.toHaveBeenCalled();
+		});
+
+		it("does nothing if no repository found", async () => {
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(undefined);
+
+			await messageHandler({ type: "discardChanges", path: "src/file.ts", status: "M" });
+
+			expect(vscode.window.showWarningMessage).not.toHaveBeenCalled();
+		});
+
+		it("does nothing if user cancels confirmation", async () => {
+			const mockClean = jest.fn().mockResolvedValue(undefined);
+			const mockRepo = {
+				rootUri: { fsPath: "/repo" },
+				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
+				clean: mockClean,
+			} as unknown as Repository;
+			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
+
+			await messageHandler({ type: "discardChanges", path: "src/file.ts", status: "M" });
+
+			expect(mockClean).not.toHaveBeenCalled();
+			expect(vscode.workspace.fs.delete).not.toHaveBeenCalled();
+		});
+
+		it("calls repository.clean for modified files", async () => {
+			const mockClean = jest.fn().mockResolvedValue(undefined);
+			const mockRepo = {
+				rootUri: { fsPath: "/repo" },
+				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
+				clean: mockClean,
+			} as unknown as Repository;
+			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Discard");
+
+			await messageHandler({ type: "discardChanges", path: "src/file.ts", status: "M" });
+
+			expect(mockClean).toHaveBeenCalledWith(["/repo/src/file.ts"]);
+		});
+
+		it("deletes file for untracked files", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo" },
+				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
+			} as unknown as Repository;
+			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Discard");
+			(vscode.workspace.fs.delete as jest.Mock).mockResolvedValue(undefined);
+
+			await messageHandler({ type: "discardChanges", path: "src/newfile.ts", status: "U" });
+
+			expect(vscode.workspace.fs.delete).toHaveBeenCalledWith({
+				fsPath: "/repo/src/newfile.ts",
+				scheme: "file",
+			});
+		});
+
+		it("shows error when discard fails", async () => {
+			const mockClean = jest.fn().mockRejectedValue(new Error("Clean failed"));
+			const mockRepo = {
+				rootUri: { fsPath: "/repo" },
+				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
+				clean: mockClean,
+			} as unknown as Repository;
+			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue("Discard");
+
+			await messageHandler({ type: "discardChanges", path: "src/file.ts", status: "M" });
+
+			expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+				"Failed to discard changes: Error: Clean failed"
+			);
+		});
+
+		it("shows delete confirmation message for untracked files", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo" },
+				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
+			} as unknown as Repository;
+			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
+
+			await messageHandler({ type: "discardChanges", path: "src/newfile.ts", status: "U" });
+
+			expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+				"Are you sure you want to delete?",
+				{ modal: true },
+				"Discard"
+			);
+		});
+
+		it("shows discard confirmation message for modified files", async () => {
+			const mockRepo = {
+				rootUri: { fsPath: "/repo" },
+				state: { onDidChange: jest.fn(() => ({ dispose: jest.fn() })) },
+			} as unknown as Repository;
+			mockGitApi.repositories = [mockRepo];
+			mockGetVSCodeGitAPI.mockReturnValue(mockGitApi);
+			mockGetPrimaryRepository.mockReturnValue(mockRepo);
+			(vscode.window.showWarningMessage as jest.Mock).mockResolvedValue(undefined);
+
+			await messageHandler({ type: "discardChanges", path: "src/file.ts", status: "M" });
+
+			expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+				"Are you sure you want to discard changes in?",
+				{ modal: true },
+				"Discard"
+			);
 		});
 	});
 });

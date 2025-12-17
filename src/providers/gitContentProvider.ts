@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { getVSCodeGitAPI } from "../services/git";
 
 const execFileAsync = promisify(execFile);
 
@@ -22,14 +23,12 @@ export class GitContentProvider implements vscode.TextDocumentContentProvider {
 		const commitRef = uri.authority;
 		const filePath = uri.path.startsWith("/") ? uri.path.substring(1) : uri.path;
 
-		const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-		const gitApi = gitExtension?.getAPI(1);
-
-		if (!gitApi || gitApi.repositories.length === 0) {
+		const git = getVSCodeGitAPI();
+		if (!git) {
 			return "";
 		}
 
-		const repository = gitApi.repositories[0];
+		const repository = git.repositories[0];
 		const cwd = repository.rootUri.fsPath;
 
 		try {
