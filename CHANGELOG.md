@@ -1,3 +1,10 @@
+# [2.5.0](https://github.com/mickr/commity/compare/v2.4.0...v2.5.0) (2025-12-20)
+
+
+### Features
+
+* **git:** include untracked files in changes and diffs ([3e454c5](https://github.com/mickr/commity/commit/3e454c5209ad6d1a0b2732b862826b76908940a4))
+
 # [2.4.0](https://github.com/mickr/commity/compare/v2.3.0...v2.4.0) (2025-12-17)
 
 
