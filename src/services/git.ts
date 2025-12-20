@@ -92,9 +92,10 @@ function shouldIgnore(relPosix: string): boolean {
 export function getChanges(repository: Repository): Change[] {
 	const workingTree: Change[] = repository.state.workingTreeChanges;
 	const staged: Change[] = repository.state.indexChanges;
+	const untracked: Change[] = repository.state.untrackedChanges ?? [];
 	const cwd = repository.rootUri.fsPath;
 
-	return [...workingTree, ...staged].filter((change) => {
+	return [...workingTree, ...staged, ...untracked].filter((change) => {
 		const rel = toPosixRelative(cwd, change.uri.fsPath);
 		return !shouldIgnore(rel);
 	});
@@ -116,10 +117,21 @@ export function getDiffs(repository: Repository): StagedDiffs {
 			const rel = toPosixRelative(cwd, filePath);
 
 			const isDeleted = change.status === 6;
+			const isUntracked = change.status === 8;
 
 			if (isDeleted) {
 				diffs[rel] = {
 					diff: "deleted",
+					summary: undefined,
+				};
+			} else if (isUntracked) {
+				const content = fs.readFileSync(filePath, "utf8");
+				const lines = content.split("\n");
+				const diffLines = lines.map((line) => `+${line}`);
+				const diff = `--- /dev/null\n+++ b/${rel}\n@@ -0,0 +1,${lines.length} @@\n${diffLines.join("\n")}`;
+
+				diffs[rel] = {
+					diff,
 					summary: undefined,
 				};
 			} else {
