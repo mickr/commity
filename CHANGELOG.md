@@ -1,3 +1,11 @@
+## [2.5.1](https://github.com/mickr/commity/compare/v2.5.0...v2.5.1) (2025-12-31)
+
+
+### Bug Fixes
+
+* **git:** improve error reporting and update development environment configuration ([dc9d91d](https://github.com/mickr/commity/commit/dc9d91d233baa925d1b1c47027758788b79af464))
+* **git:** update FireworksProvider test URL endpoint ([60cd0a3](https://github.com/mickr/commity/commit/60cd0a3fcc5463b2c34db2886c44660fe9dfcbcd))
+
 # [2.5.0](https://github.com/mickr/commity/compare/v2.4.0...v2.5.0) (2025-12-20)
 
 
