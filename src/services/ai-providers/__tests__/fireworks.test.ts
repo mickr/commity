@@ -479,7 +479,7 @@ describe("FireworksProvider", () => {
 			await provider.generateCommitMessage(request);
 
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://asyncd.test/api/commit-message",
+				"http://engineroom.test/api/commit-message",
 				expect.objectContaining({
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
