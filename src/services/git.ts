@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import * as vscode from "vscode";
 import * as git from "isomorphic-git";
 import type { Repository, Change, API } from "../types/git";
+import { Status } from "../types/git";
 
 const execFileAsync = promisify(execFile);
 
@@ -116,8 +117,8 @@ export function getDiffs(repository: Repository): StagedDiffs {
 			const filePath = change.uri.fsPath;
 			const rel = toPosixRelative(cwd, filePath);
 
-			const isDeleted = change.status === 6;
-			const isUntracked = change.status === 8;
+			const isDeleted = change.status === Status.DELETED;
+			const isUntracked = change.status === Status.UNTRACKED;
 
 			if (isDeleted) {
 				diffs[rel] = {

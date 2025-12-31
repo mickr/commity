@@ -1,7 +1,7 @@
 import type { CommitMessageRequest, LLMProvider, SquashMessageRequest } from "../../types/ai";
 
 export const resolveFireworksBaseUrl = (isDevelopment: boolean): string => {
-	return isDevelopment ? "http://asyncd.test" : "https://fireworks.commity.ai";
+	return isDevelopment ? "http://engineroom.test" : "https://fireworks.commity.ai";
 };
 
 let instance: FireworksProvider | undefined;

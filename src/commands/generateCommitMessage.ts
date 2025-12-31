@@ -105,7 +105,7 @@ export const generateCommitMessage = async (
 
 				if ([400, 401, 403, 404].includes(error.status)) {
 					vscode.window.showErrorMessage(
-						"Commity: Invalid request. Please check your configuration."
+						"Commity: Invalid request. Please check your configuration - Status: (${error.status})"
 					);
 					return;
 				}
