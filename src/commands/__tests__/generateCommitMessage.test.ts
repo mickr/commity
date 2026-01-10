@@ -285,6 +285,31 @@ describe("generateCommitMessage", () => {
 			);
 		});
 
+		it("includes branch and author in request for template interpolation", async () => {
+			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
+				yield "Test message";
+			});
+			mockFireworksProvider.prototype.streamCommitMessage = mockStreamCommitMessage;
+
+			mockGetCurrentBranch.mockReturnValue("feature/WEBAPP-123");
+			mockGetCurrentAuthor.mockReturnValue("John Doe");
+			mockReadConfiguration.mockReturnValue({
+				success: true,
+				data: "Branch: {{branch}}\nAuthor: {{author}}",
+			});
+
+			await generateCommitMessage(mockSourceControl, mockContext);
+
+			expect(mockStreamCommitMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					branch: "feature/WEBAPP-123",
+					author: "John Doe",
+					override: "Branch: {{branch}}\nAuthor: {{author}}",
+				}),
+				expect.any(Object)
+			);
+		});
+
 		it("passes undefined override when config read fails", async () => {
 			const mockStreamCommitMessage = jest.fn().mockImplementation(async function* () {
 				yield "Test message";
